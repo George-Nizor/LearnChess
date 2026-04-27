@@ -466,14 +466,19 @@ function DrillView({ position, onMastery }: DrillViewProps): ReactNode {
   // overall position. Re-add only after fixing the side-relativity.
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_280px]">
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex w-[min(80vh,90vw,640px)] flex-col gap-2">
+    // Same squeeze as the Learn view: outer page reserves 280px for the
+    // courses sidebar so the inner board+sidebar grid has to shrink. Use
+    // minmax(0,1fr) on both columns + min-w-0 on children so the right
+    // panel (Hint / Restart / Move log) wraps within its column instead
+    // of spilling past the viewport.
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
+      <div className="flex min-w-0 flex-col items-center gap-2">
+        <div className="flex w-[min(80vh,90vw,640px)] max-w-full flex-col gap-2">
           <Chessground config={cgConfig} />
         </div>
       </div>
 
-      <aside className="flex flex-col gap-3 text-sm">
+      <aside className="flex min-w-0 flex-col gap-3 text-sm">
         <div role="status" aria-live="polite" className="rounded-md border border-border bg-elevated p-3">
           <div className="text-xs uppercase text-muted-foreground">Status</div>
           <div className={`text-sm font-semibold uppercase ${
@@ -544,11 +549,11 @@ function ExploreView({ position }: { position: EndgamePosition }): ReactNode {
     animation: { enabled: false, duration: 0 },
   };
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[auto_360px]">
-      <div className="flex justify-center">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)]">
+      <div className="flex min-w-0 justify-center">
         <Chessground config={cgConfig} />
       </div>
-      <aside className="flex flex-col gap-3 text-sm">
+      <aside className="flex min-w-0 flex-col gap-3 text-sm">
         <div className="rounded-md border border-border bg-elevated p-4">
           <h3 className="text-base font-semibold">Open in Analysis Board</h3>
           <p className="mt-1 text-xs text-muted-foreground">

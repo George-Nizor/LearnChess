@@ -142,13 +142,23 @@ h3 { font-weight: 500; }
 /* Chessground board container.
    chessground inserts a `.cg-wrap` div; pieces are positioned in % of that
    wrapper. We set the wrapper to fill the host explicitly so pieces always
-   line up regardless of parent layout. Width is viewport-derived rather than
-   parent-derived so the board never collapses inside a flex/grid cell. */
+   line up regardless of parent layout.
+
+   Sizing strategy (revised 2026-04-27): bound by viewport AND by parent.
+   `min(80vh, 90vw, 640px)` is the natural target, but using `width:` for
+   that pins the box at that size and overflows narrow grid cells (e.g.
+   /endgames where a 280px courses sidebar squeezes the inner column).
+   Wrapping it with `max-width: 100%` makes the host shrink under
+   parent pressure while keeping the viewport ceiling. The aspect-ratio
+   square keeps height in lockstep so we don't need to also set height
+   in vh units. */
 .cg-board-host {
   width: min(80vh, 90vw, 640px);
-  height: min(80vh, 90vw, 640px);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
   position: relative;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
 }
 .cg-board-host > .cg-wrap {
   width: 100% !important;
