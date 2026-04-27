@@ -194,8 +194,16 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
   const finished = nodeIdx === lesson.nodes.length - 1;
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[auto_360px]">
-      <div className="flex flex-col items-center">
+    // Two-column layout that survives the squeeze from the parent
+    // [280px courses sidebar | content] grid: the board cell is
+    // minmax(0,1fr) instead of `auto` so it shrinks rather than pushing
+    // the speech bubble off-screen, and the bubble column tops out at
+    // 360px but accepts as little as 240px on narrower wrappers. Without
+    // this, a 1280-wide viewport ended up with 1024px of inner content
+    // inside ~912px of available space and the bubble bled off the
+    // right edge mid-word.
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)]">
+      <div className="flex min-w-0 flex-col items-center">
         <Chessground config={cgConfig} />
         <div className="mt-3 flex items-center gap-3">
           <button
@@ -231,8 +239,10 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
         </div>
       </div>
 
-      {/* Speech-bubble panel — knight avatar + prose. Animates in on node change. */}
-      <aside aria-live="polite" className="flex gap-3">
+      {/* Speech-bubble panel — knight avatar + prose. Animates in on node change.
+          `min-w-0` so the inner motion.div can wrap text instead of pushing
+          past the column. */}
+      <aside aria-live="polite" className="flex min-w-0 gap-3">
         <div className="flex-shrink-0 pt-1">
           <Logo size={40} decorative />
         </div>
