@@ -34,10 +34,11 @@ import { DrillSession, type SessionView } from '@/openings/drillSession';
 import { Logo } from '@/components/ui/Logo';
 import { MiniBoardPreview } from '@/components/ui/MiniBoardPreview';
 import {
-  LearnIcon, DrillIcon, ExploreIcon,
+  LearnIcon, DrillIcon, ExploreIcon, PuzzlesIcon,
   OpenGameIcon, ClosedGameIcon, DefenceIcon, KingIcon, KnightIcon,
   type ChessIconProps,
 } from '@/components/ui/ChessIcons';
+import { PuzzlesView } from './OpeningsPuzzlesView';
 import type { Config } from 'chessground/config';
 import type { DrawShape } from 'chessground/draw';
 
@@ -50,7 +51,7 @@ const CATEGORY_ICONS: Record<string, (p: ChessIconProps) => ReactNode> = {
   indian: KingIcon,
 };
 
-type Mode = 'learn' | 'drill' | 'explore';
+type Mode = 'learn' | 'drill' | 'explore' | 'puzzles';
 type CategoryFilter = 'open' | 'semi-open' | 'closed' | 'flank' | 'indian' | 'imported';
 type ColorFilter = 'white' | 'black';
 
@@ -812,11 +813,11 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
       )}
 
       <div className="flex items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
-        {(['learn', 'drill', 'explore'] as Mode[]).map((m) => {
+        {(['learn', 'drill', 'explore', 'puzzles'] as Mode[]).map((m) => {
           const isActive = mode === m;
           const disabled = m === 'learn' && !course;
-          const label = m === 'learn' ? 'Learn' : m === 'drill' ? 'Drill' : 'Explore';
-          const Icon = m === 'learn' ? LearnIcon : m === 'drill' ? DrillIcon : ExploreIcon;
+          const label = m === 'learn' ? 'Learn' : m === 'drill' ? 'Drill' : m === 'explore' ? 'Explore' : 'Puzzles';
+          const Icon = m === 'learn' ? LearnIcon : m === 'drill' ? DrillIcon : m === 'explore' ? ExploreIcon : PuzzlesIcon;
           return (
             <button
               key={m}
@@ -866,6 +867,9 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
           )}
           {mode === 'explore' && (
             <ExploreView repertoire={repertoire} line={activeLine} />
+          )}
+          {mode === 'puzzles' && (
+            <PuzzlesView repertoire={repertoire} />
           )}
         </motion.div>
       </AnimatePresence>

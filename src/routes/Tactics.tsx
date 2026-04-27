@@ -18,6 +18,7 @@ import {
 } from '@/persistence/db';
 import { Popover } from '@/components/ui/Popover';
 import { OPENINGS } from '@/chess/openings/book';
+import { formatOpeningTag, openingSlugPrefix } from '@/openings/slug';
 import type { Config } from 'chessground/config';
 
 type SolveStatus = 'awaiting' | 'wrong' | 'solved' | 'revealed';
@@ -43,40 +44,8 @@ const DEFAULT_OPEN_GROUPS: readonly ThemeGroup[] = ['tactics', 'mating'];
 const DEFAULT_RATING_MIN = 1200;
 const DEFAULT_RATING_MAX = 1600;
 
-/**
- * Lichess opening slugs use underscores between every word (so "Italian Game"
- * becomes `Italian_Game`, "Sicilian Defence" becomes `Sicilian_Defense` —
- * Lichess uses American spelling). For each curated opening we derive the
- * prefix slug used in `puzzle_opening_tags`. Where Lichess's spelling differs
- * from ours (Defence/Defense, López/Lopez, Caro-Kann/Caro_Kann), an explicit
- * override here keeps the mapping correct without touching the openings book.
- */
-const OPENING_SLUG_OVERRIDES: Record<string, string> = {
-  'ruylopez-white': 'Ruy_Lopez',
-  'sicilian-black': 'Sicilian_Defense',
-  'french-black': 'French_Defense',
-  'carokann-black': 'Caro-Kann_Defense',
-  'kid-black': "King's_Indian_Defense",
-  'qgd-white': "Queen's_Gambit_Declined",
-  'london-white': 'London_System',
-  'english-white': 'English_Opening',
-  'scandinavian-black': 'Scandinavian_Defense',
-  'pirc-black': 'Pirc_Defense',
-  'slav-black': 'Slav_Defense',
-  'vienna-white': 'Vienna_Game',
-  'italian-white': 'Italian_Game',
-};
-
-function openingSlugPrefix(openingId: string, name: string): string {
-  return OPENING_SLUG_OVERRIDES[openingId] ?? name.replace(/\s+/g, '_');
-}
-
-/** Display-friendly version of a Lichess slug: `Sicilian_Defense_Najdorf_Variation` -> `Sicilian Defense Najdorf Variation`. */
-function formatOpeningTag(tag: string): string {
-  // Strip a trailing `%` (LIKE prefix) before display.
-  const clean = tag.endsWith('%') ? tag.slice(0, -1) : tag;
-  return clean.replace(/_/g, ' ');
-}
+// Opening slug helpers moved to `@/openings/slug` so the Openings
+// detail's Puzzles tab can share the same mapping.
 
 function setupPuzzle(row: PuzzleRow): ActivePuzzle {
   const moves = row.moves.split(' ');

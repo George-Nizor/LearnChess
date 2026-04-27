@@ -100,6 +100,22 @@ export function TestIcon(props: ChessIconProps) {
   );
 }
 
+/**
+ * Puzzles — concentric target. Used on the Openings detail page's
+ * Puzzles tab where users find tactics drawn from games of the
+ * opening they're studying. Reads as "aim / find the move" without
+ * looking like a sniper sight (no crosshair lines).
+ */
+export function PuzzlesIcon(props: ChessIconProps) {
+  return (
+    <SvgShell {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5.5" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+    </SvgShell>
+  );
+}
+
 // ── Chess piece icons (single-colour silhouettes, hand-tuned) ───────────
 
 /** Pawn — ball + body + base. */

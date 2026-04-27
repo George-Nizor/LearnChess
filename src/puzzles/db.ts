@@ -191,6 +191,29 @@ export class PuzzlesDb {
     }) as Array<{ n: number }>;
     return rows[0]?.n ?? 0;
   }
+
+  /**
+   * Count of distinct puzzles whose opening tag matches the given
+   * prefix. Used by the Openings detail's Puzzles tab to surface
+   * "23 Italian Game puzzles available" without having to pull the
+   * full puzzle rows when we only render a sample of them.
+   */
+  countForOpening(openingTagPrefix: string): number {
+    const prefix = openingTagPrefix.endsWith('%') ? openingTagPrefix : `${openingTagPrefix}%`;
+    const rows = this.db.exec({
+      sql: `
+        SELECT COUNT(DISTINCT p.id) AS n
+          FROM puzzles p
+          JOIN puzzle_opening_tags pot ON pot.puzzle_id = p.id
+          JOIN opening_tags ot ON ot.id = pot.opening_tag_id
+         WHERE ot.name LIKE ?
+      `,
+      bind: [prefix],
+      returnValue: 'resultRows',
+      rowMode: 'object',
+    }) as Array<{ n: number }>;
+    return rows[0]?.n ?? 0;
+  }
 }
 
 export type { PuzzleRow };
