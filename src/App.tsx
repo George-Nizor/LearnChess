@@ -14,6 +14,10 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <Play /> },
+      // `/play` mirrors the index so the URL the user sees in the nav
+      // ("Play") is also bookmarkable. Without this, navigating directly
+      // to /play (paste, share, browser autocomplete) hit a 404.
+      { path: 'play', element: <Play /> },
       { path: 'tactics', element: <Tactics /> },
       { path: 'openings', element: <Openings /> },
       { path: 'endgames', element: <Endgames /> },

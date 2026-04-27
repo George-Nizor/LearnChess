@@ -16,7 +16,9 @@ const NAV = [
   { to: '/endgames', label: 'Endgames', end: false },
   { to: '/tactics', label: 'Tactics', end: false },
   { to: '/analysis', label: 'Analysis', end: false },
-  { to: '/', label: 'Play', end: true },
+  // Match both '/' and '/play' so the highlight follows the user when
+  // they land on the index OR the canonical /play URL.
+  { to: '/play', label: 'Play', end: false },
   { to: '/dashboard', label: 'Dashboard', end: false },
 ] as const;
 
