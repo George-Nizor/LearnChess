@@ -20,7 +20,7 @@ import { Popover } from '@/components/ui/Popover';
 import { OPENINGS } from '@/chess/openings/book';
 import type { Config } from 'chessground/config';
 
-type SolveStatus = 'awaiting' | 'wrong' | 'solved';
+type SolveStatus = 'awaiting' | 'wrong' | 'solved' | 'revealed';
 
 interface ActivePuzzle {
   row: PuzzleRow;
@@ -350,8 +350,9 @@ export function Tactics() {
         visible: true,
         autoShapes: [
           ...(hintSquare ? [{ orig: hintSquare, brush: 'paleBlue' as const }] : []),
-          // After a wrong move, show the correct continuation as a green arrow
-          ...((active && status === 'wrong' && active.solutionUci[active.ply])
+          // After a wrong move OR when the user clicks Show solution,
+          // show the correct continuation as a green arrow.
+          ...((active && (status === 'wrong' || status === 'revealed') && active.solutionUci[active.ply])
             ? [{
                 orig: active.solutionUci[active.ply]!.slice(0, 2) as Square,
                 dest: active.solutionUci[active.ply]!.slice(2, 4) as Square,
@@ -371,11 +372,17 @@ export function Tactics() {
     setActive({ ...active, hintsUsed: active.hintsUsed + 1 });
   }, [active]);
 
+  // "Show solution" reveals the answer WITHOUT penalising the user. The
+  // previous behaviour (setStatus('wrong') + recordAttempt(false)) cost
+  // ~200 rating per click and counted toward accuracy as a failed solve
+  // - actively discouraging the use of a learning aid. New behaviour:
+  // surface the move on the board (drawable arrow keys off this status)
+  // and show the SAN in the sidebar, but no rating delta, no SRS card
+  // update, no recorded attempt. The user can click Next to move on.
   const showSolution = useCallback(() => {
     if (!active) return;
-    setStatus('wrong');
-    void recordAttempt(false, active);
-  }, [active, recordAttempt]);
+    setStatus('revealed');
+  }, [active]);
 
   const toggleTheme = useCallback((theme: string) => {
     setSelectedThemes((cur) => (cur.includes(theme) ? cur.filter((t) => t !== theme) : [...cur, theme]));
@@ -453,7 +460,7 @@ export function Tactics() {
   // Compute "expected continuation" for the wrong-state display: show what
   // the user should have played from the current ply.
   const expectedSan = (() => {
-    if (!active || status !== 'wrong') return null;
+    if (!active || (status !== 'wrong' && status !== 'revealed')) return null;
     try {
       const g = new Chess(fen);
       const exp = active.solutionUci[active.ply];
@@ -958,6 +965,7 @@ export function Tactics() {
             className={`rounded-md border p-4 text-center ${
               status === 'solved' ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
                 : status === 'wrong' ? 'border-red-300 bg-red-50 text-red-900'
+                : status === 'revealed' ? 'border-amber-300 bg-amber-50 text-amber-900'
                 : 'border-border bg-background'
             }`}
           >
@@ -977,6 +985,16 @@ export function Tactics() {
                     {lastRatingDelta >= 0 ? '+' : ''}{lastRatingDelta} rating
                   </p>
                 )}
+              </>
+            ) : status === 'revealed' ? (
+              <>
+                <p className="text-base font-semibold">Solution shown</p>
+                {expectedSan && (
+                  <p className="mt-1 text-xs">
+                    Best was <span className="font-mono font-bold">{expectedSan}</span>
+                  </p>
+                )}
+                <p className="mt-1 text-[11px] text-muted-foreground">No rating change</p>
               </>
             ) : (
               <>
@@ -1016,7 +1034,7 @@ export function Tactics() {
             </div>
           )}
 
-          {active && (status === 'solved' || status === 'wrong') && (
+          {active && (status === 'solved' || status === 'wrong' || status === 'revealed') && (
             <button
               type="button"
               onClick={loadNext}
