@@ -1,0 +1,7 @@
+Source for the Stockfish artifacts in this directory:
+
+  Upstream Stockfish:        https://github.com/official-stockfish/Stockfish
+  WASM packaging (nmrugg):   https://github.com/nmrugg/stockfish.js
+  npm package:               https://www.npmjs.com/package/stockfish
+
+Vendored at build time by scripts/vendor-engine.ts from node_modules/stockfish/.

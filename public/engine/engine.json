@@ -1,0 +1,9 @@
+{
+  "jsFile": "stockfish-nnue-16-single.js",
+  "wasmFile": "stockfish-nnue-16-single.wasm",
+  "bins": [
+    "nn-5af11540bbfe.nnue",
+    "nn-76a8a7ffb820.nnue"
+  ],
+  "vendoredAt": "2026-04-26T09:55:17.014Z"
+}

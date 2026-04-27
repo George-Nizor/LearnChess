@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.cache/
+coverage/
+test-results/
+playwright-report/
+.DS_Store
+*.log
+
+public/engine/*.js
+public/engine/*.wasm
+public/engine/*.bin
+public/engine/*.nnue
+public/puzzles.db
+public/puzzles.manifest.json
+
+.env
+.env.*
+!.env.example
+.vite/
+
+# Developer machine helpers (not portable; gitignored).
+.dev/

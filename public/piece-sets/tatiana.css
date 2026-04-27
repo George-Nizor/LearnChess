@@ -1,0 +1,13 @@
+/* LearnChess piece set — tatiana. See merida.css for vendor strategy. */
+.cg-wrap piece.pawn.white   { background-image: url('/piece-sets/tatiana/wP.svg'); }
+.cg-wrap piece.knight.white { background-image: url('/piece-sets/tatiana/wN.svg'); }
+.cg-wrap piece.bishop.white { background-image: url('/piece-sets/tatiana/wB.svg'); }
+.cg-wrap piece.rook.white   { background-image: url('/piece-sets/tatiana/wR.svg'); }
+.cg-wrap piece.queen.white  { background-image: url('/piece-sets/tatiana/wQ.svg'); }
+.cg-wrap piece.king.white   { background-image: url('/piece-sets/tatiana/wK.svg'); }
+.cg-wrap piece.pawn.black   { background-image: url('/piece-sets/tatiana/bP.svg'); }
+.cg-wrap piece.knight.black { background-image: url('/piece-sets/tatiana/bN.svg'); }
+.cg-wrap piece.bishop.black { background-image: url('/piece-sets/tatiana/bB.svg'); }
+.cg-wrap piece.rook.black   { background-image: url('/piece-sets/tatiana/bR.svg'); }
+.cg-wrap piece.queen.black  { background-image: url('/piece-sets/tatiana/bQ.svg'); }
+.cg-wrap piece.king.black   { background-image: url('/piece-sets/tatiana/bK.svg'); }

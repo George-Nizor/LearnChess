@@ -1,0 +1,18 @@
+/* LearnChess piece set — merida.
+   References SVGs vendored into /piece-sets/merida/ by scripts/vendor-piece-sets.ts.
+   Source: github.com/lichess-org/lila/public/piece/merida (GPL-3.0).
+   When the vendor script hasn't been run, these URLs 404 and chessground
+   shows blank pieces — Settings UI surfaces a warning when the set is
+   unavailable. */
+.cg-wrap piece.pawn.white   { background-image: url('/piece-sets/merida/wP.svg'); }
+.cg-wrap piece.knight.white { background-image: url('/piece-sets/merida/wN.svg'); }
+.cg-wrap piece.bishop.white { background-image: url('/piece-sets/merida/wB.svg'); }
+.cg-wrap piece.rook.white   { background-image: url('/piece-sets/merida/wR.svg'); }
+.cg-wrap piece.queen.white  { background-image: url('/piece-sets/merida/wQ.svg'); }
+.cg-wrap piece.king.white   { background-image: url('/piece-sets/merida/wK.svg'); }
+.cg-wrap piece.pawn.black   { background-image: url('/piece-sets/merida/bP.svg'); }
+.cg-wrap piece.knight.black { background-image: url('/piece-sets/merida/bN.svg'); }
+.cg-wrap piece.bishop.black { background-image: url('/piece-sets/merida/bB.svg'); }
+.cg-wrap piece.rook.black   { background-image: url('/piece-sets/merida/bR.svg'); }
+.cg-wrap piece.queen.black  { background-image: url('/piece-sets/merida/bQ.svg'); }
+.cg-wrap piece.king.black   { background-image: url('/piece-sets/merida/bK.svg'); }
