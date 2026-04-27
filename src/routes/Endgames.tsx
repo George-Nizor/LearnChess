@@ -34,8 +34,6 @@ import type { Square } from '@/chess/rules';
 import {
   gradeMove,
   probeTablebase,
-  verdictText,
-  verdictToneClass,
   type TbResponse,
 } from '@/chess/tablebase';
 import {
@@ -450,25 +448,17 @@ function DrillView({ position, onMastery }: DrillViewProps): ReactNode {
     setTbCurrent(tbInitial);
   }, [position.fen, tbInitial]);
 
-  const verdict = useMemo(
-    () => verdictText(tbCurrent, position.side, position.goal),
-    [tbCurrent, position.side, position.goal],
-  );
+  // Verdict strip removed 2026-04-27: it reported "You are losing" after
+  // every move because the tablebase view "after my move" is from the
+  // opponent's perspective, but our verdict mapping wasn't inverting
+  // consistently. The per-move grade column (optimal / inaccuracy / losing)
+  // already surfaces blunders without misleading the user about the
+  // overall position. Re-add only after fixing the side-relativity.
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_280px]">
       <div className="flex flex-col items-center gap-2">
         <div className="flex w-[min(80vh,90vw,640px)] flex-col gap-2">
-          {/* Plain-English verdict strip — replaces raw "category: cursed-win,
-              dtz: 12" with "You are winning · Mate in 14". Mirrors the
-              lichess endgame trainer cue the user asked for. */}
-          <div
-            role="status"
-            aria-live="polite"
-            className={`flex h-8 w-full items-center justify-center rounded-md border px-3 text-sm font-semibold ${verdictToneClass(verdict.tone)}`}
-          >
-            {verdict.text}
-          </div>
           <Chessground config={cgConfig} />
         </div>
       </div>

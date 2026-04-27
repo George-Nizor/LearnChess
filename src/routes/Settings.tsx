@@ -3,32 +3,50 @@
  *
  * V1 covers:
  *   Display: theme (light/dark/auto)
- *   Board:   square palette, piece set
- *   Sound:   pack + preview button
+ *   Board:   square palette + piece set, with live mini-board previews
+ *   Sound:   pack picker with per-pack ▶ preview button
  *   Data:    wipe local progress
  *
  * Each preference store owns its own persistence (localStorage) and the
- * Settings page is a thin View. We deliberately don't introduce a
- * shadcn Card primitive here — the existing routes use bordered divs
- * for "card" surfaces (`rounded-md border border-border bg-elevated p-5`)
- * so we match that pattern for visual consistency.
+ * Settings page is a thin View. Sections are wrapped in bordered card shells
+ * that match the visual style used by trainer routes.
  *
- * Accessibility: every control is a real <button>/<input> with a label,
- * tab-order is logical (top-down), and choice groups are wrapped in a
- * <fieldset>+<legend> so screen readers announce the group name.
+ * Live previews — design note:
+ *   Rather than mounting one chessground per option (heavy, and chessground's
+ *   board CSS targets a global tag selector so per-card overrides would clash),
+ *   we render a static SVG/CSS grid via `MiniBoardPreview`. Each card receives
+ *   the theme and piece-set IDs as props so it shows the EXACT palette + sprite
+ *   the live board will use, without any coupling to the active store value.
+ *   The active store value still drives the visible "selected" ring, and
+ *   clicking a card commits the change via the store setter.
+ *
+ * Accessibility: every choice control is a real <button>/<input> with a label,
+ * tab-order is logical (top-down), choice groups are wrapped in a
+ * <fieldset>+<legend>, and the board/piece grids implement radiogroup
+ * semantics with arrow-key navigation.
  */
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { PageShell } from '@/components/ui/PageShell';
+import { MiniBoardPreview } from '@/components/ui/MiniBoardPreview';
+import { SoundPreviewButton } from '@/components/ui/SoundPreviewButton';
 import { useBoardTheme, BOARD_THEMES, type BoardThemeId } from '@/state/boardTheme';
 import { usePieceSet, PIECE_SETS, type PieceSetId } from '@/state/pieceSet';
 import { useSoundPack, SOUND_PACKS, type SoundPackId } from '@/state/soundPack';
-import { playSound } from '@/sound';
 import { clearAll } from '@/persistence/db';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
 const THEME_KEY = 'learnchess.theme';
+
+// Defaults for the per-section "Reset" buttons. Kept here (rather than
+// re-imported from each store) because the store files keep their default
+// internal — duplicating the four-character literals here is cheaper than
+// widening their public API just for a reset button.
+const DEFAULT_THEME_MODE: ThemeMode = 'auto';
+const DEFAULT_BOARD_THEME: BoardThemeId = 'brown';
+const DEFAULT_PIECE_SET: PieceSetId = 'cburnett';
+const DEFAULT_SOUND_PACK: SoundPackId = 'standard';
 
 function readThemeMode(): ThemeMode {
   if (typeof window === 'undefined') return 'auto';
@@ -53,7 +71,7 @@ function applyThemeMode(mode: ThemeMode): void {
   else root.classList.remove('dark');
 }
 
-// ── Reusable choice-group ───────────────────────────────────────────────
+// ── Reusable choice-group (compact pills, used for theme + sound) ────────
 
 interface ChoiceGroupProps<T extends string> {
   legend: string;
@@ -63,43 +81,142 @@ interface ChoiceGroupProps<T extends string> {
   onChange: (id: T) => void;
   /** Optional name to scope the radio inputs (avoids cross-form clashes). */
   name: string;
+  /** Optional render-prop for trailing content per option (e.g. preview btn). */
+  renderTrailing?: (id: T) => ReactNode;
 }
 
-function ChoiceGroup<T extends string>({ legend, description, value, options, onChange, name }: ChoiceGroupProps<T>): ReactNode {
+function ChoiceGroup<T extends string>({
+  legend, description, value, options, onChange, name, renderTrailing,
+}: ChoiceGroupProps<T>): ReactNode {
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium text-foreground">{legend}</legend>
       {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      <div className="flex flex-wrap gap-2 pt-1">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         {options.map((opt) => {
           const isActive = opt.id === value;
           const inputId = `${name}-${opt.id}`;
           return (
-            <label
-              key={opt.id}
-              htmlFor={inputId}
-              title={opt.description}
-              className={`group cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                isActive
-                  ? 'border-accent bg-accent text-accent-foreground shadow-sm'
-                  : 'border-border bg-background text-foreground hover:bg-muted'
-              }`}
-            >
-              <input
-                id={inputId}
-                type="radio"
-                name={name}
-                value={opt.id}
-                checked={isActive}
-                onChange={() => onChange(opt.id)}
-                className="sr-only"
-              />
-              <span>{opt.label}</span>
-            </label>
+            <span key={opt.id} className="inline-flex items-center gap-1.5">
+              <label
+                htmlFor={inputId}
+                title={opt.description}
+                className={`group cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                  isActive
+                    ? 'border-accent bg-accent text-accent-foreground shadow-sm'
+                    : 'border-border bg-background text-foreground hover:bg-muted'
+                }`}
+              >
+                <input
+                  id={inputId}
+                  type="radio"
+                  name={name}
+                  value={opt.id}
+                  checked={isActive}
+                  onChange={() => onChange(opt.id)}
+                  className="sr-only"
+                />
+                <span>{opt.label}</span>
+              </label>
+              {renderTrailing?.(opt.id)}
+            </span>
           );
         })}
       </div>
     </fieldset>
+  );
+}
+
+// ── Preview-card grid (board theme + piece set) ──────────────────────────
+
+interface PreviewGridProps<T extends string> {
+  legend: string;
+  description?: string;
+  value: T;
+  options: ReadonlyArray<{ id: T; label: string; description?: string }>;
+  onChange: (id: T) => void;
+  /** Render the preview thumbnail for an option. */
+  renderPreview: (id: T) => ReactNode;
+  /** Stable name for accessibility / keyboard handling. */
+  name: string;
+}
+
+function PreviewGrid<T extends string>({
+  legend, description, value, options, onChange, renderPreview, name,
+}: PreviewGridProps<T>): ReactNode {
+  // Refs in option-array order so arrow-key nav can focus the next/prev card.
+  const refs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const onKeyDown = useCallback((e: KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    let next = idx;
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown': next = (idx + 1) % options.length; break;
+      case 'ArrowLeft':
+      case 'ArrowUp':   next = (idx - 1 + options.length) % options.length; break;
+      case 'Home':      next = 0; break;
+      case 'End':       next = options.length - 1; break;
+      default: return;
+    }
+    e.preventDefault();
+    const target = options[next];
+    if (!target) return;
+    onChange(target.id);
+    refs.current[next]?.focus();
+  }, [options, onChange]);
+
+  return (
+    <fieldset className="space-y-3">
+      <legend className="text-sm font-medium text-foreground">{legend}</legend>
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      <div
+        role="radiogroup"
+        aria-label={legend}
+        className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3"
+      >
+        {options.map((opt, idx) => {
+          const isActive = opt.id === value;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              aria-label={`${opt.label}${opt.description ? ` — ${opt.description}` : ''}`}
+              tabIndex={isActive ? 0 : -1}
+              ref={(el) => { refs.current[idx] = el; }}
+              onClick={() => onChange(opt.id)}
+              onKeyDown={(e) => onKeyDown(e, idx)}
+              className={`group flex flex-col items-center gap-2 rounded-lg border p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                isActive
+                  ? 'border-accent bg-accent/10 ring-1 ring-accent shadow-sm'
+                  : 'border-border bg-background hover:bg-muted'
+              }`}
+              data-name={name}
+            >
+              {renderPreview(opt.id)}
+              <span className={`text-xs font-medium ${isActive ? 'text-accent' : 'text-foreground'}`}>
+                {opt.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+// ── Reset-section button ────────────────────────────────────────────────
+
+function ResetButton({ onClick, label = 'Reset to defaults' }: { onClick: () => void; label?: string }): ReactNode {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="self-start rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
+      {label}
+    </button>
   );
 }
 
@@ -130,13 +247,18 @@ export function Settings(): ReactNode {
     setThemeModeState(m);
   }, []);
 
-  const handleSoundChoice = useCallback((p: SoundPackId) => {
-    setSoundPack(p);
-  }, [setSoundPack]);
+  const resetDisplay = useCallback(() => {
+    handleThemeMode(DEFAULT_THEME_MODE);
+  }, [handleThemeMode]);
 
-  const handlePreviewSound = useCallback(() => {
-    playSound('move', soundPack);
-  }, [soundPack]);
+  const resetBoard = useCallback(() => {
+    setBoardTheme(DEFAULT_BOARD_THEME);
+    setPieceSet(DEFAULT_PIECE_SET);
+  }, [setBoardTheme, setPieceSet]);
+
+  const resetSound = useCallback(() => {
+    setSoundPack(DEFAULT_SOUND_PACK);
+  }, [setSoundPack]);
 
   const handleWipe = useCallback(async () => {
     setWipeStatus('wiping');
@@ -181,29 +303,41 @@ export function Settings(): ReactNode {
             ]}
             onChange={handleThemeMode}
           />
+          <ResetButton onClick={resetDisplay} />
         </section>
 
         {/* ── Board ─────────────────────────────────────────────────── */}
         <section
           aria-labelledby="settings-board"
-          className="space-y-4 rounded-md border border-border bg-elevated p-5"
+          className="space-y-5 rounded-md border border-border bg-elevated p-5"
         >
           <h2 id="settings-board" className="font-display text-lg font-semibold">Board</h2>
-          <ChoiceGroup<BoardThemeId>
+
+          <PreviewGrid<BoardThemeId>
             name="board-theme"
             legend="Squares"
+            description="Click a board to apply that palette."
             value={boardTheme}
             options={BOARD_THEMES}
             onChange={setBoardTheme}
+            renderPreview={(id) => (
+              <MiniBoardPreview boardTheme={id} pieceSet={pieceSet} size={140} />
+            )}
           />
-          <ChoiceGroup<PieceSetId>
+
+          <PreviewGrid<PieceSetId>
             name="piece-set"
             legend="Pieces"
             description="Alternate sets need to be vendored once via npm run vendor:piece-sets — until then they fall back to CBurnett."
             value={pieceSet}
             options={PIECE_SETS}
             onChange={setPieceSet}
+            renderPreview={(id) => (
+              <MiniBoardPreview boardTheme={boardTheme} pieceSet={id} size={140} />
+            )}
           />
+
+          <ResetButton onClick={resetBoard} label="Reset board to defaults" />
         </section>
 
         {/* ── Sound ─────────────────────────────────────────────────── */}
@@ -215,21 +349,13 @@ export function Settings(): ReactNode {
           <ChoiceGroup<SoundPackId>
             name="sound-pack"
             legend="Pack"
-            description="Each pack ships move, capture, check and game-end samples."
+            description="Each pack ships move, capture, check and game-end samples. Press ▶ to sample without switching."
             value={soundPack}
             options={SOUND_PACKS}
-            onChange={handleSoundChoice}
+            onChange={setSoundPack}
+            renderTrailing={(id) => <SoundPreviewButton pack={id} />}
           />
-          <div>
-            <button
-              type="button"
-              onClick={handlePreviewSound}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              aria-label="Preview move sound"
-            >
-              Preview move sound
-            </button>
-          </div>
+          <ResetButton onClick={resetSound} label="Reset sound pack" />
         </section>
 
         {/* ── Data ──────────────────────────────────────────────────── */}

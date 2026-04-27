@@ -8,13 +8,16 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { SettingsIcon } from '@/components/ui/ChessIcons';
 import { PageMetaContext, type PageMetaContextValue } from './page-meta';
 
+// Nav order reflects priority: learning chess (openings → endgames → tactics)
+// comes before analysis tools and free play. Dashboard sits last because it's
+// a passive view, not a primary action.
 const NAV = [
+  { to: '/openings', label: 'Openings', end: false },
+  { to: '/endgames', label: 'Endgames', end: false },
+  { to: '/tactics', label: 'Tactics', end: false },
+  { to: '/analysis', label: 'Analysis', end: false },
   { to: '/', label: 'Play', end: true },
-  { to: '/tactics', label: 'Tactics' },
-  { to: '/openings', label: 'Openings' },
-  { to: '/endgames', label: 'Endgames' },
-  { to: '/analysis', label: 'Analysis' },
-  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/dashboard', label: 'Dashboard', end: false },
 ] as const;
 
 export function Layout() {

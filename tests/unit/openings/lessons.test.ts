@@ -93,10 +93,10 @@ describe('OPENING_COURSES — chess.js replay (lenient)', () => {
       // suite to pass when only a few lines need a fix.
       console.warn('[opening-lessons] broken nodes flagged:', broken);
     }
-    // We require at least 16 fully-clean lines (more than the 12 openings,
-    // which guarantees at least the top 4 openings have multiple working
-    // lines each) so the trainer is functional.
-    expect(cleanLines, `clean ${cleanLines}/${totalLines} lines`).toBeGreaterThanOrEqual(16);
+    // We require at least 80 fully-clean lines — the chessreps-quality
+    // breadth target. The whole library should replay without errors;
+    // the small slack absorbs the rare drift case.
+    expect(cleanLines, `clean ${cleanLines}/${totalLines} lines`).toBeGreaterThanOrEqual(80);
     // And no line should be silently broken — the lenient threshold is for
     // the rare drift case, not authoring carelessness.
     expect(broken.length, `broken nodes:\n${broken.map((b) => `  ${b.courseId}/${b.lineId} ply ${b.ply} san=${b.san}: ${b.reason}`).join('\n')}`).toBe(0);
@@ -106,11 +106,14 @@ describe('OPENING_COURSES — chess.js replay (lenient)', () => {
 describe('OPENING_COURSES — coverage of curated openings', () => {
   it('covers all top-4 openings the user studies first', () => {
     // These are the must-have multi-line courses promised in the spec.
+    // Targets per the chessreps-breadth expansion: Italian 10, Sicilian 12,
+    // Caro-Kann 8, Ruy López 10. We require ≥8 here (some slack for
+    // future trims).
     const required = ['italian-white', 'sicilian-black', 'carokann-black', 'ruylopez-white'];
     for (const id of required) {
       const c = courseFor(id);
       expect(c, `${id} course missing`).toBeDefined();
-      expect(c!.lines.length, `${id} should have at least 4 lines`).toBeGreaterThanOrEqual(4);
+      expect(c!.lines.length, `${id} should have at least 8 lines`).toBeGreaterThanOrEqual(8);
     }
   });
 

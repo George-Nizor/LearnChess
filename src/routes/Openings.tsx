@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Chessground } from '@/chess/board';
@@ -32,11 +32,27 @@ import {
 } from '@/openings';
 import { DrillSession, type SessionView } from '@/openings/drillSession';
 import { Logo } from '@/components/ui/Logo';
-import { LearnIcon, DrillIcon, ExploreIcon } from '@/components/ui/ChessIcons';
+import { MiniBoardPreview } from '@/components/ui/MiniBoardPreview';
+import {
+  LearnIcon, DrillIcon, ExploreIcon,
+  OpenGameIcon, ClosedGameIcon, DefenceIcon, KingIcon, KnightIcon,
+  type ChessIconProps,
+} from '@/components/ui/ChessIcons';
 import type { Config } from 'chessground/config';
 import type { DrawShape } from 'chessground/draw';
 
+/** Map an opening category (from book.ts) to its icon. */
+const CATEGORY_ICONS: Record<string, (p: ChessIconProps) => ReactNode> = {
+  open: OpenGameIcon,
+  'semi-open': DefenceIcon,
+  closed: ClosedGameIcon,
+  flank: KnightIcon,
+  indian: KingIcon,
+};
+
 type Mode = 'learn' | 'drill' | 'explore';
+type CategoryFilter = 'open' | 'semi-open' | 'closed' | 'flank' | 'indian' | 'imported';
+type ColorFilter = 'white' | 'black';
 
 const RED_FLASH_MS = 600;
 const GREEN_CHECK_MS = 700;
@@ -44,12 +60,6 @@ const REENABLE_BOARD_MS = 250;
 const REVEAL_PULSE_AFTER = 2;
 const STARTING_FEN_FULL = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-/*
- * chess.com-style move-quality glyphs rendered on the destination square via
- * chessground's `customSvg` autoShape API. SVG viewBox is implicitly the
- * square (0..100 by chessground convention). We size the badge to ~30% of
- * the square and dock it bottom-right so it doesn't obscure the piece.
- */
 const SVG_CORRECT = `
   <g transform="translate(60,60) scale(0.32)">
     <circle cx="50" cy="50" r="48" fill="#22c55e" stroke="white" stroke-width="6"/>
@@ -62,9 +72,6 @@ const SVG_WRONG = `
     <path d="M 30 30 L 70 70 M 70 30 L 30 70" stroke="white" stroke-width="12" stroke-linecap="round"/>
   </g>`;
 
-// SVG_BRILLIANT — reserved for future "first-time correct on a deep-review
-// move" detection. Not wired up yet; keep the asset for the eventual hook.
-// (Drop the leading underscore from the constant when it goes live.)
 const _SVG_BRILLIANT = `
   <g transform="translate(60,60) scale(0.32)">
     <circle cx="50" cy="50" r="48" fill="#0ea5e9" stroke="white" stroke-width="6"/>
@@ -75,23 +82,12 @@ void _SVG_BRILLIANT;
 // ───── Friendly metric helpers ────────────────────────────────────────────
 
 function masteredCount(moves: RepMove[]): number {
-  // "Mastered" = own-move that has graduated learning AND has at least a
-  // 7-day review interval (matches our scheduler.ts `masteryOf` 'short' bucket).
   return moves.filter(
     (m) => m.isOwnMove && !m.deleted && m.learningStep === null && (m.reviewIntervalDays ?? 0) >= 7,
   ).length;
 }
 
 // ───── Speech-bubble prose renderer ──────────────────────────────────────
-//
-// Handles two layers of formatting:
-//   - Paragraphs: split on `\n\n`, render each as its own <p> with a top
-//     margin so the bubble doesn't read as a wall of text.
-//   - Sentences: even within a single paragraph, two-or-more sentences get a
-//     subtle line-break (a soft `<br>`) after each terminal-punctuation +
-//     space pair. Authors don't have to reformat every existing lesson —
-//     visually-improved formatting is automatic.
-//   - **bold** for inline move references, rendered via <strong>.
 
 function renderInline(segment: string, keyPrefix: string): ReactNode[] {
   return segment.split(/(\*\*[^*]+\*\*)/).map((p, i) =>
@@ -104,19 +100,18 @@ function renderInline(segment: string, keyPrefix: string): ReactNode[] {
 }
 
 function renderParagraph(para: string, paraIdx: number): ReactNode {
-  // Insert a soft break after every sentence boundary (.!? followed by space
-  // and a capital letter). Single break, not a paragraph — keeps the eye
-  // moving without blowing out vertical space.
   const sentences = para.split(/(?<=[.!?])\s+(?=[A-Z"'(])/);
   return (
-    <p key={`p-${paraIdx}`} className={paraIdx > 0 ? 'mt-3' : ''}>
+    <div key={`p-${paraIdx}`} className={paraIdx > 0 ? 'mt-4' : ''}>
       {sentences.map((s, si) => (
-        <span key={`p-${paraIdx}-s-${si}`}>
+        <p
+          key={`p-${paraIdx}-s-${si}`}
+          className={si === 0 ? '' : 'mt-2'}
+        >
           {renderInline(s, `p-${paraIdx}-s-${si}`)}
-          {si < sentences.length - 1 && ' '}
-        </span>
+        </p>
       ))}
-    </p>
+    </div>
   );
 }
 
@@ -136,17 +131,10 @@ interface LearnViewProps {
 }
 
 function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, onProgress }: LearnViewProps): ReactNode {
-  // The parent re-keys this whole subtree on activeLineId change, so the
-  // initial state is the truthful per-line starting point — no per-line
-  // reset effect needed here. We DON'T sync nodeIdx to changes in
-  // initialNodeIdx after mount, because that would regress the user's
-  // view when their own clicks bump progress through the parent.
   const [nodeIdx, setNodeIdx] = useState<number>(Math.min(initialNodeIdx, line.nodes.length - 1));
 
   const node = line.nodes[nodeIdx]!;
 
-  // Build full FEN with halfmove + fullmove counters by replaying from the start
-  // through chess.js — chessground needs the full FEN.
   const fen = useMemo(() => {
     const game = new Chess();
     for (let i = 1; i <= nodeIdx; i++) {
@@ -175,7 +163,6 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
     }
   }, [nodeIdx, line.nodes]);
 
-  // Determine the user's "side" from the opening to set board orientation
   const playerSide = course.openingId.endsWith('-black') ? 'black' : 'white';
 
   const cgConfig = useMemo<Config>(() => ({
@@ -207,7 +194,6 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
     setNodeIdx(0);
   }, []);
 
-  // Keyboard shortcuts: ←/→ for prev/next
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target && (e.target as HTMLElement).tagName === 'TEXTAREA') return;
@@ -259,7 +245,6 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
         </div>
       </div>
 
-      {/* Speech-bubble panel — knight avatar + prose. Animates in on node change. */}
       <aside aria-live="polite" className="flex gap-3">
         <div className="flex-shrink-0 pt-1">
           <Logo size={40} decorative />
@@ -272,9 +257,8 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.2 }}
-              className="relative rounded-2xl rounded-tl-sm border border-border bg-elevated p-5 text-base leading-relaxed shadow-sm"
+              className="relative max-w-[42ch] rounded-2xl rounded-tl-sm border border-border bg-elevated p-5 text-[15px] leading-7 shadow-sm"
             >
-              {/* Tail pointing back at the avatar */}
               <span
                 aria-hidden
                 className="absolute -left-2 top-3 h-3 w-3 rotate-45 border-b border-l border-border bg-elevated"
@@ -297,9 +281,8 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
 
 interface DrillViewProps {
   repertoire: Repertoire;
-  /** Active line — used to filter the drill walk to this line's positions only. */
   line: OpeningLine | undefined;
-  onMastery: () => void;          // called after any move so parent can refresh stats
+  onMastery: () => void;
 }
 
 function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
@@ -312,16 +295,6 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
   const [empty, setEmpty] = useState(false);
 
   const loadNextLine = useCallback(async () => {
-    // When a line is selected, build the drill edges directly from the
-    // line's nodes by looking up each (fromFen, toFen) edge in the rep DB.
-    // This pins the drill to the EXACT variation the user picked rather
-    // than the heaviest book line.
-    //
-    // Some authored lines teach positions the curated rep tree doesn't
-    // include yet (e.g. Italian Quiet plays 4.d3 directly while book.ts
-    // only has d3 after c3-Nf6). When that happens we fall back to the
-    // chessdriller-style walker so the user can still drill *something*
-    // — losing per-line specificity but never showing a dead screen.
     if (line) {
       const edges: RepMove[] = [];
       for (let i = 1; i < line.nodes.length; i++) {
@@ -340,12 +313,8 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
         setShowRevealArrow(false);
         return;
       }
-      // Fall through to the auto-walker if no edges are in the rep DB.
     }
 
-    // No line scope (e.g. user-imported PGN repertoire) or the selected
-    // line isn't in the curated tree — fall back to the chessdriller-style
-    // auto-walker over the whole repertoire.
     const drill = await selectDrillLine(repertoire.id);
     if (!drill) {
       setEmpty(true);
@@ -366,7 +335,7 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
   }, [loadNextLine]);
 
   const handlePlayerMove = useCallback(
-    async (from: Square, to: Square) => {
+    (from: Square, to: Square): void => {
       const session = sessionRef.current;
       if (!session || boardLocked) return;
       const v = session.view();
@@ -385,47 +354,52 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
       if (result.kind === 'no-op') return;
 
       if (result.kind === 'wrong') {
+        setSessionView(session.view());
         setRedFlashSquare(to);
         setBoardLocked(true);
         playSound('check');
-        const updated: RepMove = { ...result.correctMove, ...onWrong(result.correctMove) };
-        await putMove(updated);
-        const lastSan = probe.history({ verbose: true }).slice(-1)[0]?.san;
-        await recordAttempt({
-          repertoireId: repertoire.id,
-          fromFen: result.correctMove.fromFen,
-          toFen: result.correctMove.toFen,
-          studiedAt: Date.now(),
-          wasCorrect: false,
-          ...(lastSan !== undefined ? { incorrectGuessSan: lastSan } : {}),
-        });
-        setSessionView(session.view());
         setTimeout(() => setRedFlashSquare(null), RED_FLASH_MS);
         setTimeout(() => setBoardLocked(false), REENABLE_BOARD_MS);
-        onMastery();
+        const lastSan = probe.history({ verbose: true }).slice(-1)[0]?.san;
+        void (async () => {
+          const updated: RepMove = { ...result.correctMove, ...onWrong(result.correctMove) };
+          await putMove(updated);
+          await recordAttempt({
+            repertoireId: repertoire.id,
+            fromFen: result.correctMove.fromFen,
+            toFen: result.correctMove.toFen,
+            studiedAt: Date.now(),
+            wasCorrect: false,
+            ...(lastSan !== undefined ? { incorrectGuessSan: lastSan } : {}),
+          });
+          onMastery();
+        })();
         return;
       }
 
-      // correct — flash a green check on the destination
+      const expected = v.expected;
+      const repertoireId = repertoire.id;
       playSound('move');
-      setGreenCheckSquare(to);
-      setTimeout(() => setGreenCheckSquare(null), GREEN_CHECK_MS);
-      const updated: RepMove = { ...v.expected, ...onCorrect(v.expected) };
-      await putMove(updated);
-      await recordAttempt({
-        repertoireId: repertoire.id,
-        fromFen: v.expected.fromFen,
-        toFen: v.expected.toFen,
-        studiedAt: Date.now(),
-        wasCorrect: true,
-      });
       setSessionView(result.advancedTo);
       setShowRevealArrow(false);
-      onMastery();
+      setGreenCheckSquare(to);
+      setTimeout(() => setGreenCheckSquare(null), GREEN_CHECK_MS);
       if (result.advancedTo.finished) {
         setBoardLocked(true);
         setTimeout(() => { void loadNextLine(); }, 600);
       }
+      void (async () => {
+        const updated: RepMove = { ...expected, ...onCorrect(expected) };
+        await putMove(updated);
+        await recordAttempt({
+          repertoireId,
+          fromFen: expected.fromFen,
+          toFen: expected.toFen,
+          studiedAt: Date.now(),
+          wasCorrect: true,
+        });
+        onMastery();
+      })();
     },
     [repertoire.id, boardLocked, loadNextLine, onMastery],
   );
@@ -480,7 +454,6 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
 
   const autoShapes = useMemo<DrawShape[]>(() => {
     const shapes: DrawShape[] = [];
-    // chess.com-style move-quality badges: red ✗ for wrong, green ✓ for correct.
     if (redFlashSquare) {
       shapes.push({ orig: redFlashSquare, brush: 'red', customSvg: { html: SVG_WRONG } });
     }
@@ -583,8 +556,6 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
 // ───── Explore view — links to /analysis ────────────────────────────────
 
 function ExploreView({ repertoire, line }: { repertoire: Repertoire; line: OpeningLine | undefined }): ReactNode {
-  // If a line is selected, open the analysis from its current ending position
-  // so the user can branch out from where the lesson left off.
   const fen = useMemo(() => {
     if (!line) return STARTING_FEN_FULL;
     const game = new Chess();
@@ -639,9 +610,6 @@ interface LineCardProps {
 }
 
 function LineCard({ line, active, progress, onSelect }: LineCardProps): ReactNode {
-  // Status badge: ◯ unseen, ◐ in-progress, ● completed.
-  // discoveredNodeIdx === 0 means only the intro was opened — count that as
-  // unseen for the badge so users know they haven't actually started.
   const status: 'unseen' | 'in-progress' | 'completed' =
     progress === undefined || progress.discoveredNodeIdx <= 0
       ? 'unseen'
@@ -687,16 +655,18 @@ function LineCard({ line, active, progress, onSelect }: LineCardProps): ReactNod
   );
 }
 
-// ───── Main page ──────────────────────────────────────────────────────────
+// ───── Course detail (header + tabs + mode body) ─────────────────────────
 
-export function Openings(): ReactNode {
-  const [reps, setReps] = useState<Repertoire[]>([]);
-  const [activeRepId, setActiveRepId] = useState<number | null>(null);
-  const [activeLineId, setActiveLineId] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>('learn');
-  const [importOpen, setImportOpen] = useState(false);
+interface CourseDetailProps {
+  repertoire: Repertoire;
+  course: OpeningCourse | undefined;
+  onBack: () => void;
+}
+
+function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactNode {
+  const [activeLineId, setActiveLineId] = useState<string | null>(course?.lines[0]?.id ?? null);
+  const [mode, setMode] = useState<Mode>(course ? 'learn' : 'drill');
   const [lineProgressRows, setLineProgressRows] = useState<LineProgress[]>([]);
-
   const [stats, setStats] = useState<{ mastered: number; ownTotal: number; linesCompleted: number; linesTotal: number }>({
     mastered: 0,
     ownTotal: 0,
@@ -704,43 +674,12 @@ export function Openings(): ReactNode {
     linesTotal: 0,
   });
 
-  // Auto-import curated openings on every visit. importCuratedSpec is idempotent
-  // (checks for existing by sourceLabel), so this also picks up any new opening
-  // added to book.ts since the user's last visit. Sequential awaits to avoid
-  // React-strict-mode double-invoke racing the existence check.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      for (const o of OPENINGS) {
-        if (cancelled) return;
-        await importCuratedSpec(o);
-      }
-      if (cancelled) return;
-      const all = await listRepertoires();
-      setReps(all);
-      if (all.length > 0 && activeRepId === null) {
-        setActiveRepId(all[0]!.id);
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const activeRep = useMemo(() => reps.find((r) => r.id === activeRepId), [reps, activeRepId]);
-  // Memoise the course so dependency identities (`course`) stay stable across
-  // renders that don't change the active repertoire.
-  const course: OpeningCourse | undefined = useMemo(
-    () => (activeRep ? courseFor(activeRep.sourceLabel ?? '') : undefined),
-    [activeRep],
-  );
-
-  // Reset the active line whenever the repertoire changes — default to first line.
+  // Reset active line whenever repertoire/course changes — pick first line.
   useEffect(() => {
     if (!course) {
       setActiveLineId(null);
       return;
     }
-    // If the current activeLineId doesn't belong to this course, pick the first.
     const exists = activeLineId !== null && course.lines.some((l) => l.id === activeLineId);
     if (!exists) {
       setActiveLineId(course.lines[0]?.id ?? null);
@@ -752,16 +691,15 @@ export function Openings(): ReactNode {
     return course.lines.find((l) => l.id === activeLineId) ?? course.lines[0];
   }, [course, activeLineId]);
 
-  // Refresh friendly metrics for the active repertoire.
   const refreshStats = useCallback(async () => {
-    if (activeRepId === null || !course) {
+    if (!course) {
       setLineProgressRows([]);
       return;
     }
-    const moves = await allMoves(activeRepId);
+    const moves = await allMoves(repertoire.id);
     const own = moves.filter((m) => m.isOwnMove);
-    const completed = await linesCompletedFor(activeRepId);
-    const rows = await listLineProgress(activeRepId);
+    const completed = await linesCompletedFor(repertoire.id);
+    const rows = await listLineProgress(repertoire.id);
     setLineProgressRows(rows);
     setStats({
       mastered: masteredCount(moves),
@@ -769,16 +707,14 @@ export function Openings(): ReactNode {
       linesCompleted: completed.size,
       linesTotal: course.lines.length,
     });
-  }, [activeRepId, course]);
+  }, [repertoire.id, course]);
 
   useEffect(() => { void refreshStats(); }, [refreshStats]);
 
-  // If the active opening has no course, default mode to drill.
   useEffect(() => {
-    if (mode === 'learn' && !course && activeRep) setMode('drill');
-  }, [course, mode, activeRep]);
+    if (mode === 'learn' && !course) setMode('drill');
+  }, [course, mode]);
 
-  // Per-line learn progress lookup for the active line.
   const activeLineProgress = useMemo<LineProgress | undefined>(() => {
     if (!activeLine) return undefined;
     return lineProgressRows.find((r) => r.lineId === activeLine.id);
@@ -786,14 +722,14 @@ export function Openings(): ReactNode {
 
   const handleLearnProgress = useCallback(
     async (nodeIdx: number) => {
-      if (activeRepId === null || !activeLine) return;
-      await markLineNodeVisited(activeRepId, activeLine.id, nodeIdx, activeLine.nodes.length);
+      if (!activeLine) return;
+      await markLineNodeVisited(repertoire.id, activeLine.id, nodeIdx, activeLine.nodes.length);
       await refreshStats();
     },
-    [activeRepId, activeLine, refreshStats],
+    [repertoire.id, activeLine, refreshStats],
   );
 
-  // [/] keyboard shortcuts to cycle through lines while in Learn mode.
+  // [/] keyboard shortcuts to cycle lines.
   useEffect(() => {
     if (!course || course.lines.length < 2) return;
     const onKey = (e: KeyboardEvent) => {
@@ -810,224 +746,515 @@ export function Openings(): ReactNode {
     return () => window.removeEventListener('keydown', onKey);
   }, [course, activeLineId]);
 
-  const groupedByCategory = useMemo(() => {
-    // Belt-and-braces dedup by sourceLabel — if React-strict-mode double-invoke
-    // ever bypassed importCuratedSpec's existence check, a curated opening can
-    // appear twice in IDB. Show only the first per sourceLabel here so the
-    // sidebar isn't visually broken; the duplicate row stays in IDB harmlessly.
-    const seenSource = new Set<string>();
-    const deduped = reps.filter((r) => {
-      const key = r.sourceKind === 'curated' && r.sourceLabel ? `${r.sourceKind}:${r.sourceLabel}` : `id:${r.id}`;
-      if (seenSource.has(key)) return false;
-      seenSource.add(key);
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      <div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← Back to courses
+        </button>
+      </div>
+
+      <div className="rounded-md border border-border bg-elevated p-5">
+        <div className="flex items-baseline gap-3">
+          <h2 className="font-display text-2xl font-semibold leading-tight">{repertoire.name}</h2>
+          <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {repertoire.repForWhite ? 'White' : 'Black'}
+          </span>
+        </div>
+        {(course?.tagline ?? repertoire.description) && (
+          <p className="mt-1.5 text-sm text-muted-foreground">{course?.tagline ?? repertoire.description}</p>
+        )}
+        <div className="mt-4 flex flex-wrap gap-6">
+          <ProgressChip
+            label="Lines learned"
+            value={stats.linesCompleted}
+            total={stats.linesTotal}
+            hint="Lines you've walked through Learn mode end-to-end"
+          />
+          <ProgressChip
+            label="Moves mastered"
+            value={stats.mastered}
+            total={stats.ownTotal}
+            hint="Your own-moves with at least a 7-day review interval"
+          />
+        </div>
+      </div>
+
+      {course && course.lines.length > 0 && (
+        <section aria-label="Lines in this opening" className="rounded-md border border-border bg-elevated/40 p-3">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <h3 className="font-display text-sm font-semibold">Lines</h3>
+            <p className="text-[11px] text-muted-foreground">
+              {course.lines.length === 1
+                ? '1 line'
+                : <>{course.lines.length} lines · use <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">[</kbd> / <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">]</kbd> to switch</>}
+            </p>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {course.lines.map((l) => {
+              const progress = lineProgressRows.find((r) => r.lineId === l.id);
+              return (
+                <LineCard
+                  key={l.id}
+                  line={l}
+                  active={l.id === activeLineId}
+                  progress={progress}
+                  onSelect={() => setActiveLineId(l.id)}
+                />
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <div className="flex items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
+        {(['learn', 'drill', 'explore'] as Mode[]).map((m) => {
+          const isActive = mode === m;
+          const disabled = m === 'learn' && !course;
+          const label = m === 'learn' ? 'Learn' : m === 'drill' ? 'Drill' : 'Explore';
+          const Icon = m === 'learn' ? LearnIcon : m === 'drill' ? DrillIcon : ExploreIcon;
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => !disabled && setMode(m)}
+              disabled={disabled}
+              className={`relative rounded px-4 py-1.5 text-sm font-medium transition-colors ${
+                isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+              } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
+              title={disabled ? 'No prose course yet for this opening' : undefined}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="opening-tab-pill"
+                  className="absolute inset-0 rounded bg-background shadow-sm"
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                />
+              )}
+              <span className="relative inline-flex items-center gap-1.5">
+                <Icon size={15} />
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={`${repertoire.id}-${activeLineId ?? 'none'}-${mode}`}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+        >
+          {mode === 'learn' && course && activeLine && (
+            <LearnView
+              course={course}
+              line={activeLine}
+              repertoireId={repertoire.id}
+              initialNodeIdx={Math.min(activeLineProgress?.discoveredNodeIdx ?? 0, activeLine.nodes.length - 1)}
+              onProgress={(idx) => void handleLearnProgress(idx)}
+            />
+          )}
+          {mode === 'drill' && (
+            <DrillView repertoire={repertoire} line={activeLine} onMastery={() => void refreshStats()} />
+          )}
+          {mode === 'explore' && (
+            <ExploreView repertoire={repertoire} line={activeLine} />
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ───── Catalogue (chessreps-style course grid) ───────────────────────────
+
+interface CatalogueRow {
+  rep: Repertoire;
+  course: OpeningCourse | undefined;
+  category: CategoryFilter;
+  eco: string | undefined;
+  description: string;
+  /** Set of completed line ids for this rep. */
+  completedLines: Set<string>;
+}
+
+interface CatalogueProps {
+  rows: CatalogueRow[];
+  onOpen: (repId: number) => void;
+  onImport: () => void;
+}
+
+function Catalogue({ rows, onOpen, onImport }: CatalogueProps): ReactNode {
+  const [search, setSearch] = useState('');
+  const [activeCategories, setActiveCategories] = useState<Set<CategoryFilter>>(new Set());
+  const [activeColors, setActiveColors] = useState<Set<ColorFilter>>(new Set());
+
+  // All categories that actually appear in the catalogue (filter chip strip).
+  const availableCategories = useMemo(() => {
+    const set = new Set<CategoryFilter>();
+    for (const r of rows) set.add(r.category);
+    // Order chips deterministically.
+    const order: CategoryFilter[] = ['open', 'semi-open', 'closed', 'flank', 'indian', 'imported'];
+    return order.filter((c) => set.has(c));
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (q && !r.rep.name.toLowerCase().includes(q)) return false;
+      if (activeCategories.size > 0 && !activeCategories.has(r.category)) return false;
+      if (activeColors.size > 0) {
+        const c: ColorFilter = r.rep.repForWhite ? 'white' : 'black';
+        if (!activeColors.has(c)) return false;
+      }
       return true;
     });
+  }, [rows, search, activeCategories, activeColors]);
 
-    const map = new Map<string, Repertoire[]>();
-    for (const r of deduped) {
-      const o = r.sourceLabel ? OPENINGS.find((x) => x.id === r.sourceLabel) : undefined;
-      const cat = o?.category ?? 'imported';
-      const arr = map.get(cat) ?? [];
-      arr.push(r);
-      map.set(cat, arr);
+  // Aggregate stats: lines learned across all reps; courses with any progress.
+  const aggregate = useMemo(() => {
+    let linesLearned = 0;
+    let linesTotal = 0;
+    let coursesStarted = 0;
+    for (const r of rows) {
+      const total = r.course?.lines.length ?? 0;
+      linesTotal += total;
+      const learned = r.completedLines.size;
+      linesLearned += learned;
+      if (learned > 0) coursesStarted += 1;
     }
-    return map;
+    return { linesLearned, linesTotal, coursesStarted, coursesTotal: rows.length };
+  }, [rows]);
+
+  const toggleCategory = (c: CategoryFilter) => {
+    setActiveCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c); else next.add(c);
+      return next;
+    });
+  };
+  const toggleColor = (c: ColorFilter) => {
+    setActiveColors((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c); else next.add(c);
+      return next;
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <h1 className="font-display text-3xl font-semibold leading-tight">Openings</h1>
+          <button
+            type="button"
+            onClick={onImport}
+            className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            + Import custom
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="sr-only">Search courses</span>
+            <span aria-hidden className="text-muted-foreground">🔍</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search openings…"
+              className="w-64 rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:border-accent focus:outline-none"
+              aria-label="Search courses by name"
+            />
+          </label>
+
+          <div role="group" aria-label="Filter by category" className="flex flex-wrap gap-1.5">
+            {availableCategories.map((c) => {
+              const active = activeCategories.has(c);
+              const Icon = CATEGORY_ICONS[c];
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleCategory(c)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs capitalize transition-colors ${
+                    active
+                      ? 'border-accent bg-accent/15 text-foreground'
+                      : 'border-border bg-elevated text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {Icon ? <Icon size={11} /> : null}
+                  <span>{c}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div role="group" aria-label="Filter by colour" className="flex gap-1.5">
+            {(['white', 'black'] as ColorFilter[]).map((c) => {
+              const active = activeColors.has(c);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleColor(c)}
+                  className={`rounded-full border px-2.5 py-1 text-xs capitalize transition-colors ${
+                    active
+                      ? 'border-accent bg-accent/15 text-foreground'
+                      : 'border-border bg-elevated text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="ml-auto text-right text-xs text-muted-foreground">
+            <div>
+              <span className="font-mono text-foreground">{aggregate.linesLearned}</span>
+              {' / '}
+              <span className="font-mono">{aggregate.linesTotal}</span>{' lines learned'}
+            </div>
+            <div>
+              <span className="font-mono text-foreground">{aggregate.coursesStarted}</span>
+              {' / '}
+              <span className="font-mono">{aggregate.coursesTotal}</span>{' courses started'}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-md border border-border bg-elevated p-6 text-sm text-muted-foreground">
+          No openings match your filters.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {filtered.map((row) => (
+            <CourseCard key={row.rep.id} row={row} onOpen={() => onOpen(row.rep.id)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───── Course card ───────────────────────────────────────────────────────
+
+interface CourseCardProps {
+  row: CatalogueRow;
+  onOpen: () => void;
+}
+
+function CourseCard({ row, onOpen }: CourseCardProps): ReactNode {
+  const total = row.course?.lines.length ?? 0;
+  const learned = row.completedLines.size;
+  const pct = total === 0 ? 0 : Math.round((learned / total) * 100);
+  const orientation: 'white' | 'black' = row.rep.repForWhite ? 'white' : 'black';
+  const Icon = CATEGORY_ICONS[row.category];
+
+  return (
+    <article
+      aria-labelledby={`course-${row.rep.id}-title`}
+      className="group flex flex-col gap-3 rounded-lg border border-border bg-elevated p-4 shadow-sm transition-all hover:scale-[1.01] hover:shadow-md sm:flex-row sm:items-stretch sm:gap-4"
+    >
+      <div className="flex-shrink-0">
+        <MiniBoardPreview size={140} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex items-baseline gap-2">
+          <h3
+            id={`course-${row.rep.id}-title`}
+            className="font-display text-base font-semibold leading-tight"
+          >
+            {row.rep.name}
+          </h3>
+          {Icon ? <Icon size={12} /> : null}
+          {row.eco && (
+            <span className="font-mono text-[10px] text-muted-foreground">{row.eco}</span>
+          )}
+          <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {orientation}
+          </span>
+        </div>
+        <p className="line-clamp-2 text-xs text-muted-foreground">{row.description}</p>
+
+        <div className="mt-auto">
+          {total > 0 && (
+            <>
+              <div className="mb-1 flex items-baseline justify-between text-[11px]">
+                <span className="font-medium uppercase tracking-wide text-muted-foreground">Progress</span>
+                <span className="font-mono text-foreground">{learned} / {total} lines</span>
+              </div>
+              <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-accent transition-all"
+                  style={{ width: `${pct}%` }}
+                  role="progressbar"
+                  aria-valuenow={pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${learned} of ${total} lines learned`}
+                />
+              </div>
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={onOpen}
+            className="w-full rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          >
+            Open
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// ───── Main page ──────────────────────────────────────────────────────────
+
+export function Openings(): ReactNode {
+  const [reps, setReps] = useState<Repertoire[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
+  /** repId → set of completed line ids. Aggregated for catalogue cards. */
+  const [completedByRep, setCompletedByRep] = useState<Map<number, Set<string>>>(new Map());
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const courseSlug = searchParams.get('course');
+
+  // Auto-import curated openings on mount. Idempotent — picks up new openings.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      for (const o of OPENINGS) {
+        if (cancelled) return;
+        await importCuratedSpec(o);
+      }
+      if (cancelled) return;
+      const all = await listRepertoires();
+      setReps(all);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Aggregate per-rep completed lines for the catalogue progress bars.
+  // O(N) IDB calls — for our N≤~12 curated courses this is fine. If we add
+  // user-imported reps to the catalogue and N grows past ~50, switch to a
+  // single getAll on lineProgress filtered client-side.
+  const refreshAggregate = useCallback(async () => {
+    if (reps.length === 0) return;
+    const entries = await Promise.all(
+      reps.map(async (r) => [r.id, await linesCompletedFor(r.id)] as const),
+    );
+    setCompletedByRep(new Map(entries));
   }, [reps]);
+
+  useEffect(() => { void refreshAggregate(); }, [refreshAggregate]);
+
+  // Refresh aggregate whenever the user comes back to the catalogue
+  // (i.e. courseSlug just transitioned to null).
+  useEffect(() => {
+    if (courseSlug === null) void refreshAggregate();
+  }, [courseSlug, refreshAggregate]);
+
+  // Build catalogue rows — one per curated repertoire, deduped by sourceLabel.
+  const catalogueRows = useMemo<CatalogueRow[]>(() => {
+    const seen = new Set<string>();
+    const out: CatalogueRow[] = [];
+    for (const r of reps) {
+      const key = r.sourceKind === 'curated' && r.sourceLabel ? `${r.sourceKind}:${r.sourceLabel}` : `id:${r.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const opening = r.sourceLabel ? OPENINGS.find((x) => x.id === r.sourceLabel) : undefined;
+      const course = courseFor(r.sourceLabel ?? '');
+      const category: CategoryFilter = (opening?.category ?? 'imported');
+      const description = course?.tagline ?? opening?.description ?? r.description ?? '';
+      const completedLines = completedByRep.get(r.id) ?? new Set<string>();
+      out.push({
+        rep: r,
+        course,
+        category,
+        eco: opening?.eco,
+        description,
+        completedLines,
+      });
+    }
+    return out;
+  }, [reps, completedByRep]);
+
+  // Resolve activeRepId from URL slug. Slug == repertoire sourceLabel for curated.
+  const activeRep = useMemo(() => {
+    if (courseSlug === null) return undefined;
+    return reps.find((r) => r.sourceLabel === courseSlug)
+      ?? reps.find((r) => String(r.id) === courseSlug);
+  }, [reps, courseSlug]);
+
+  const activeCourse: OpeningCourse | undefined = useMemo(
+    () => (activeRep ? courseFor(activeRep.sourceLabel ?? '') : undefined),
+    [activeRep],
+  );
+
+  const openCourse = useCallback((repId: number) => {
+    const rep = reps.find((r) => r.id === repId);
+    if (!rep) return;
+    const slug = rep.sourceLabel ?? String(rep.id);
+    setSearchParams({ course: slug });
+  }, [reps, setSearchParams]);
+
+  const goBack = useCallback(() => {
+    setSearchParams({});
+  }, [setSearchParams]);
 
   return (
     <div className="mx-auto max-w-7xl p-6">
-      {/* Single shared grid: course sidebar (left) + content column (right).
-          Putting EVERYTHING in one grid means the header, tabs, and board all
-          align to the same left edge — fixes the misalignment the user flagged. */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[260px_minmax(0,1fr)]">
-        {/* Course sidebar — sticky on desktop so it stays visible while
-            scrolling through long Drill move lists. */}
-        <aside className="md:sticky md:top-4 md:self-start max-h-[calc(100vh-6rem)] overflow-y-auto rounded-md border border-border bg-elevated/40 p-3">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-display text-sm font-semibold">Courses</h3>
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="rounded border border-border bg-background px-2 py-1 text-xs hover:bg-muted"
-            >
-              + Import
-            </button>
-          </div>
-          {Array.from(groupedByCategory.entries()).map(([cat, items]) => (
-            <section key={cat} className="mb-4">
-              <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{cat}</h4>
-              <ul className="space-y-1">
-                {items.map((r) => {
-                  const o = r.sourceLabel ? OPENINGS.find((x) => x.id === r.sourceLabel) : undefined;
-                  const repCourse = courseFor(r.sourceLabel ?? '');
-                  const lessonCount = repCourse?.lines.length ?? 0;
-                  const isActive = r.id === activeRepId;
-                  return (
-                    <li key={r.id}>
-                      <button
-                        type="button"
-                        onClick={() => { setActiveRepId(r.id); setMode(repCourse ? 'learn' : 'drill'); }}
-                        className={`w-full rounded-md px-2.5 py-2 text-left transition-colors ${
-                          isActive
-                            ? 'bg-accent text-accent-foreground shadow-sm'
-                            : 'hover:bg-muted'
-                        }`}
-                      >
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-sm font-medium leading-tight">{r.name}</span>
-                          {lessonCount > 0 && (
-                            <span
-                              aria-label={`${lessonCount} ${lessonCount === 1 ? 'lesson' : 'lessons'}`}
-                              title={`${lessonCount} ${lessonCount === 1 ? 'lesson' : 'lessons'}`}
-                              className={`flex-shrink-0 text-[10px] font-mono ${isActive ? 'text-accent-foreground/80' : 'text-accent'}`}
-                            >
-                              {lessonCount}●
-                            </span>
-                          )}
-                        </div>
-                        <div className={`mt-0.5 flex items-center gap-2 text-[11px] ${isActive ? 'text-accent-foreground/80' : 'text-muted-foreground'}`}>
-                          <span>for {r.repForWhite ? 'White' : 'Black'}</span>
-                          {o?.eco && <span className="font-mono">· {o.eco}</span>}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-          <p className="mt-2 px-1 text-[10px] text-muted-foreground">
-            <span className="text-accent">N●</span> = has lessons (line count)
-          </p>
-        </aside>
+      {courseSlug === null && (
+        <Catalogue
+          rows={catalogueRows}
+          onOpen={openCourse}
+          onImport={() => setImportOpen(true)}
+        />
+      )}
 
-        {/* Right column — header, tabs, mode body all flow vertically and align
-            to the same left edge as each other. */}
-        <div className="flex min-w-0 flex-col gap-4">
-          {activeRep && (
-            <div className="rounded-md border border-border bg-elevated p-5">
-              <div className="flex items-baseline gap-3">
-                <h2 className="font-display text-2xl font-semibold leading-tight">{activeRep.name}</h2>
-                <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  {activeRep.repForWhite ? 'White' : 'Black'}
-                </span>
-              </div>
-              {(course?.tagline ?? activeRep.description) && (
-                <p className="mt-1.5 text-sm text-muted-foreground">{course?.tagline ?? activeRep.description}</p>
-              )}
-              <div className="mt-4 flex flex-wrap gap-6">
-                <ProgressChip
-                  label="Lines learned"
-                  value={stats.linesCompleted}
-                  total={stats.linesTotal}
-                  hint="Lines you've walked through Learn mode end-to-end"
-                />
-                <ProgressChip
-                  label="Moves mastered"
-                  value={stats.mastered}
-                  total={stats.ownTotal}
-                  hint="Your own-moves with at least a 7-day review interval"
-                />
-              </div>
-            </div>
-          )}
+      {courseSlug !== null && activeRep && (
+        <CourseDetail
+          key={activeRep.id}
+          repertoire={activeRep}
+          course={activeCourse}
+          onBack={goBack}
+        />
+      )}
 
-          {/* Per-line picker — only render when the course has a line set. */}
-          {activeRep && course && course.lines.length > 0 && (
-            <section aria-label="Lines in this opening" className="rounded-md border border-border bg-elevated/40 p-3">
-              <div className="mb-2 flex items-baseline justify-between gap-2">
-                <h3 className="font-display text-sm font-semibold">Lines</h3>
-                <p className="text-[11px] text-muted-foreground">
-                  {course.lines.length === 1
-                    ? '1 line'
-                    : <>{course.lines.length} lines · use <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">[</kbd> / <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">]</kbd> to switch</>}
-                </p>
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {course.lines.map((l) => {
-                  const progress = lineProgressRows.find((r) => r.lineId === l.id);
-                  return (
-                    <LineCard
-                      key={l.id}
-                      line={l}
-                      active={l.id === activeLineId}
-                      progress={progress}
-                      onSelect={() => setActiveLineId(l.id)}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {activeRep && (
-            <div className="flex items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
-              {(['learn', 'drill', 'explore'] as Mode[]).map((m) => {
-                const isActive = mode === m;
-                const disabled = m === 'learn' && !course;
-                const label = m === 'learn' ? 'Learn' : m === 'drill' ? 'Drill' : 'Explore';
-                const Icon = m === 'learn' ? LearnIcon : m === 'drill' ? DrillIcon : ExploreIcon;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => !disabled && setMode(m)}
-                    disabled={disabled}
-                    className={`relative rounded px-4 py-1.5 text-sm font-medium transition-colors ${
-                      isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
-                    title={disabled ? 'No prose course yet for this opening' : undefined}
-                  >
-                    {isActive && (
-                      <motion.span
-                        layoutId="opening-tab-pill"
-                        className="absolute inset-0 rounded bg-background shadow-sm"
-                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative inline-flex items-center gap-1.5">
-                      <Icon size={15} />
-                      {label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Mode body — INSIDE the right column so it aligns with header + tabs */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${activeRepId}-${activeLineId ?? 'none'}-${mode}`}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-            >
-              {!activeRep && (
-                <div className="rounded-md border border-border bg-elevated p-6 text-sm text-muted-foreground">
-                  Loading courses…
-                </div>
-              )}
-              {activeRep && mode === 'learn' && course && activeLine && (
-                <LearnView
-                  course={course}
-                  line={activeLine}
-                  repertoireId={activeRep.id}
-                  initialNodeIdx={Math.min(activeLineProgress?.discoveredNodeIdx ?? 0, activeLine.nodes.length - 1)}
-                  onProgress={(idx) => void handleLearnProgress(idx)}
-                />
-              )}
-              {activeRep && mode === 'drill' && (
-                <DrillView repertoire={activeRep} line={activeLine} onMastery={() => void refreshStats()} />
-              )}
-              {activeRep && mode === 'explore' && (
-                <ExploreView repertoire={activeRep} line={activeLine} />
-              )}
-            </motion.div>
-          </AnimatePresence>
+      {courseSlug !== null && !activeRep && reps.length > 0 && (
+        <div className="rounded-md border border-border bg-elevated p-6 text-sm">
+          <p className="font-medium">Course not found.</p>
+          <button
+            type="button"
+            onClick={goBack}
+            className="mt-2 text-sm text-accent hover:underline"
+          >
+            ← Back to courses
+          </button>
         </div>
-      </div>
+      )}
+
+      {courseSlug !== null && reps.length === 0 && (
+        <div className="rounded-md border border-border bg-elevated p-6 text-sm text-muted-foreground">
+          Loading courses…
+        </div>
+      )}
 
       {importOpen && (
         <ImportDialog
@@ -1035,9 +1262,10 @@ export function Openings(): ReactNode {
           onImported={async (newRepId) => {
             const all = await listRepertoires();
             setReps(all);
-            setActiveRepId(newRepId);
-            setMode('drill');
             setImportOpen(false);
+            const rep = all.find((r) => r.id === newRepId);
+            const slug = rep?.sourceLabel ?? String(newRepId);
+            setSearchParams({ course: slug });
           }}
         />
       )}

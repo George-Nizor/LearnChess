@@ -1,29 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <!--
-    LearnChess favicon — bold pawn silhouette in a rounded cream tile.
-    The previous knight-on-tile mark was too detailed at the 16x16 size
-    browser tabs actually render. A pawn is the simplest chess piece and
-    the most recognisable in pure silhouette: ball-on-cup. Sage accent
-    against warm cream so it pairs with both light and dark browser
-    chromes (the tile gives it edge contrast against either).
+    LearnChess favicon — a literal black king silhouette in the standard
+    Cburnett style. The user has now twice rejected the sage / accent-tile
+    variations: "just a standard chess piece like the king or rook".
+    So this is exactly that — a king, recognisable at any browser favicon
+    size, no decoration. Sits on a transparent background; both light and
+    dark browser chromes look fine.
+
+    The path is hand-distilled from the standard king glyph: cross, bulb,
+    body, plinth — all one fill so the silhouette stays connected at 16px.
   -->
-  <rect x="0" y="0" width="32" height="32" rx="7" fill="#f8f6ee"/>
-  <rect x="1" y="1" width="30" height="30" rx="6" fill="none" stroke="#5d8c4a" stroke-width="1.4" opacity="0.45"/>
-  <!-- Pawn: head (circle), neck (collar), body (trapezoid), base (plinth). All
-       one accent fill so the silhouette is unambiguous at favicon scale. -->
-  <path d="M 16 6
-           C 13.5 6 11.6 7.95 11.6 10.4
-           C 11.6 11.45 11.95 12.4 12.55 13.15
-           C 11.5 13.65 10.7 14.7 10.7 15.95
-           C 10.7 17.0 11.25 17.95 12.1 18.5
-           C 10.1 19.85 8.7 22.25 8.4 25.0
-           L 23.6 25.0
-           C 23.3 22.25 21.9 19.85 19.9 18.5
-           C 20.75 17.95 21.3 17.0 21.3 15.95
-           C 21.3 14.7 20.5 13.65 19.45 13.15
-           C 20.05 12.4 20.4 11.45 20.4 10.4
-           C 20.4 7.95 18.5 6 16 6 Z"
-        fill="#5d8c4a"/>
-  <!-- Plinth — wide base bar; the "rest" of the pawn that finishes the silhouette. -->
-  <rect x="6.5" y="25.4" width="19" height="2.6" rx="0.8" fill="#5d8c4a"/>
+  <g fill="#1a1a1a" stroke="#1a1a1a" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Cross at the top -->
+    <rect x="30" y="6"  width="4"  height="14" rx="0.5" />
+    <rect x="25" y="11" width="14" height="4"  rx="0.5" />
+
+    <!-- Bulb / orb beneath the cross -->
+    <circle cx="32" cy="22" r="5" />
+
+    <!-- King body: trapezoid widening to plinth -->
+    <path d="
+      M 22 28
+      C 22 26 24 25 26 25
+      L 38 25
+      C 40 25 42 26 42 28
+      L 44 44
+      L 20 44
+      Z" />
+
+    <!-- Belt / decoration band — a thin negative space cut into the body -->
+    <rect x="22" y="36" width="20" height="2" fill="#f8f6ee" stroke="none" />
+
+    <!-- Plinth — wide base bar -->
+    <rect x="14" y="44" width="36" height="6" rx="1" />
+    <rect x="12" y="50" width="40" height="4" rx="1.5" />
+  </g>
 </svg>

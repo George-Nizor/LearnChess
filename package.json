@@ -20,8 +20,9 @@
     "vendor:sqlite": "tsx scripts/vendor-sqlite.ts",
     "vendor:sounds": "tsx scripts/vendor-sounds.ts",
     "vendor:piece-sets": "tsx scripts/vendor-piece-sets.ts",
+    "vendor:opening-names": "tsx scripts/vendor-opening-names.ts",
     "build:puzzles": "tsx scripts/build-puzzles.ts",
-    "vendor:all": "npm run vendor:engine && npm run vendor:sqlite && npm run vendor:sounds && npm run vendor:piece-sets"
+    "vendor:all": "npm run vendor:engine && npm run vendor:sqlite && npm run vendor:sounds && npm run vendor:piece-sets && npm run vendor:opening-names"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "^3.47.0-build1",
