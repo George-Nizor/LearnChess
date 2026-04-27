@@ -122,15 +122,32 @@ export async function importCuratedSpec(opening: Opening): Promise<number> {
     }
   }
 
-  // Backfill: only insert edges that don't already exist for this rep, so
-  // we never clobber the user's accumulated SRS state on a re-import.
-  let toInsert = [...dedup.values()];
+  // Backfill / weight-refresh:
+  //   - For brand-new edges → insert.
+  //   - For edges that already exist → if the curated weight has drifted,
+  //     update ONLY the weight field (preserve all SRS state). This lets
+  //     us re-tune book weights or fix import-weight bugs without nuking
+  //     IDB and without losing what the user has learned.
+  let toWrite = [...dedup.values()];
   if (existing) {
-    const have = new Set((await allMoves(repertoireId)).map((m) => m.fromFen + '|' + m.toFen));
-    toInsert = toInsert.filter((m) => !have.has(m.fromFen + '|' + m.toFen));
+    const haveByKey = new Map(
+      (await allMoves(repertoireId)).map((m) => [m.fromFen + '|' + m.toFen, m] as const),
+    );
+    const next: RepMove[] = [];
+    for (const m of toWrite) {
+      const key = m.fromFen + '|' + m.toFen;
+      const had = haveByKey.get(key);
+      if (had === undefined) {
+        next.push(m);                                      // new edge
+      } else if (Math.abs((had.weight ?? 0) - (m.weight ?? 0)) > 1e-9) {
+        next.push({ ...had, weight: m.weight ?? 0 });      // weight-only refresh
+      }
+      // else: identical → skip
+    }
+    toWrite = next;
   }
 
-  await bulkPutMoves(toInsert);
+  await bulkPutMoves(toWrite);
   return repertoireId;
 }
 
@@ -139,11 +156,19 @@ export async function importCuratedSpec(opening: Opening): Promise<number> {
  * Each line is a linear chain of moves; we walk it through chess.js to get
  * authoritative SAN/FEN at every ply, then emit one RepMove per edge.
  *
- * Move weights default to 1 — these are deeper continuations beyond the
- * book.ts tree, so they shouldn't outrank the carefully-tuned book weights
- * for branches the book already covers (the dedup pass keeps book entries
- * when both exist for the same edge).
+ * Weight = LESSON_EDGE_WEIGHT (small constant, well below any plausible
+ * normalised book-sibling weight). Reason: book.ts weights are normalised
+ * to fractions of 1 across siblings at each branch (e.g. 0.5/0.3/0.2 for
+ * three replies). If we emitted lesson edges at weight=1, they would
+ * out-rank every book-mainline reply on the same fromFen — turning the
+ * drill into a forced-Byrne-System experience because the lessons-only
+ * 4.Bg5 (weight 1) beats the book's 4.Nf3 (weight 0.5). Setting lesson
+ * weight to 0.05 gives lessons-only branches a small but non-zero share
+ * (~5%) under weighted-random opponent selection while preserving book's
+ * tuned probabilities for branches it already covers.
  */
+const LESSON_EDGE_WEIGHT = 0.05;
+
 function lessonCourseMoves(course: OpeningCourse, repertoireId: number, userSide: 'w' | 'b'): RepMove[] {
   const out: RepMove[] = [];
   for (const line of course.lines) {
@@ -169,7 +194,7 @@ function lessonCourseMoves(course: OpeningCourse, repertoireId: number, userSide
         san: move.san,
         uci: move.from + move.to + (move.promotion ?? ''),
         isOwnMove: isOwn,
-        weight: 1,
+        weight: LESSON_EDGE_WEIGHT,
         deleted: false,
         learningStep: srs.learningStep ?? 0,
         learningDueAt: srs.learningDueAt ?? Date.now(),

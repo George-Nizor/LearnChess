@@ -65,10 +65,34 @@ function compareScores(a: Score, b: Score): number {
   return 0;
 }
 
-/** Pick the heaviest-weight opponent move; falls back to the first available if no weights. */
-function pickOpponentReply(candidates: RepMove[]): RepMove | null {
+/**
+ * Pick an opponent reply weighted-randomly by `weight`.
+ *
+ * Was: `reduce` to the heaviest weight — deterministic, so every Pirc drill
+ * picked Byrne (the lessons-only branch with weight bumped above book) and
+ * the user could never reach Classical / Austrian / 150 Attack / Deep Plan
+ * without manually changing the URL. Roulette-wheel sampling restores
+ * variety: at a branch with weights [0.5, 0.3, 0.2, 0.05] we get those
+ * proportions of branches across many drills, instead of 100% of the
+ * heaviest.
+ *
+ * `rng` is injectable so tests can pin a seed.
+ */
+function pickOpponentReply(candidates: RepMove[], rng: () => number): RepMove | null {
   if (candidates.length === 0) return null;
-  return candidates.reduce<RepMove>((best, c) => ((c.weight ?? 0) > (best.weight ?? 0) ? c : best), candidates[0]!);
+  const weights = candidates.map((c) => Math.max(0, c.weight ?? 0));
+  const total = weights.reduce((s, w) => s + w, 0);
+  if (total <= 0) {
+    // Degenerate: no weight signal. Pick any candidate uniformly so the
+    // drill still progresses.
+    return candidates[Math.floor(rng() * candidates.length)] ?? candidates[0]!;
+  }
+  let r = rng() * total;
+  for (let i = 0; i < candidates.length; i++) {
+    r -= weights[i] ?? 0;
+    if (r <= 0) return candidates[i]!;
+  }
+  return candidates[candidates.length - 1]!;
 }
 
 export interface SelectLineOpts {
@@ -130,8 +154,8 @@ export async function selectDrillLine(repertoireId: number, opts: SelectLineOpts
       return best ?? { edges: [], score: emptyScore() };
     }
 
-    // Opponent's move: pick the heaviest reply, then recurse
-    const reply = pickOpponentReply(candidates.filter((c) => !c.deleted));
+    // Opponent's move: weighted-random pick from non-deleted replies, recurse
+    const reply = pickOpponentReply(candidates.filter((c) => !c.deleted), rng);
     if (!reply) return { edges: [], score: emptyScore() };
     const tail = bestFrom(reply.toFen, depth + 1);
     return { edges: [reply, ...tail.edges], score: tail.score };
