@@ -1,10 +1,9 @@
 # Resume plan — pick up here next session
 
-> Last touched 2026-04-28 after landing the Pirc deep-rewrite (`4e8f708`)
-> and Puzzles tab feature (`4faab94`). All 105 tests pass; main is clean.
-> Hit usage limits mid-conversation; this doc captures what's next so a
-> fresh session can step straight into the work without re-reading the
-> whole transcript.
+> Last touched 2026-04-29 after the Italian Game deep-rewrite
+> (`86514e6`) + the home-lab deploy prep doc (this commit). Pirc
+> (`4e8f708`) and Puzzles tab (`4faab94`) shipped the prior session.
+> All 105 tests pass; main is clean.
 
 ---
 
@@ -27,7 +26,19 @@ Two big landings shipped in the previous session:
 
 ## Next steps (priority order)
 
-### 1. Roll the depth-pass to the remaining 12 openings  (HIGH PRIORITY — user explicit ask)
+### 0. Home-lab deployment  (NEW — see `docs/DEPLOY.md`)
+
+User wants persistent hosting on their network. Templates and notes
+ready to drop in: Caddy config, nginx config, Dockerfile,
+pre-deploy verification checklist. Nothing wired up to the build
+yet — pick the path (Caddy is recommended) and:
+1. Add a `Dockerfile` + `deploy/nginx.conf` to the repo.
+2. Add a `docker-compose.yml` for the home-lab box.
+3. Set up the LAN DNS (`chess.home.lan` or similar) + cert.
+4. Cron `npm run vendor:engine` + `npm run build:puzzles` monthly to
+   refresh the puzzle DB and keep the engine up to date.
+
+### 1. Roll the depth-pass to the remaining 11 openings  (HIGH PRIORITY — user explicit ask)
 
 **Goal:** every opening has the same ideas-first lesson quality as Pirc.
 
@@ -43,7 +54,7 @@ Two big landings shipped in the previous session:
 - Authoring rules in `src/openings/lessons.ts` header comment still apply.
 
 **Suggested order (nav order, easiest first):**
-1. Italian Game (4 lines) — beginner classic, lots of named tactics
+1. ~~Italian Game~~ — DONE in `86514e6` (10 lines including the rare ones)
 2. Ruy Lopez (3 lines) — Closed Spanish + Berlin + Exchange
 3. Sicilian Defence (4 lines) — Najdorf, Dragon, Taimanov, Closed
 4. French Defence (4 lines) — Winawer, Classical, Tarrasch, Advance
@@ -56,8 +67,8 @@ Two big landings shipped in the previous session:
 11. Vienna Game (3 lines)
 12. Scandinavian (3 lines)
 
-Total: ~42 lines × 11-14 plies = ~500 nodes. Substantial but each
-opening is independent and ships as its own commit.
+Total remaining: ~36 lines. Each opening is independent and ships as
+its own commit. **Italian Game is the gold template** — same recipe.
 
 **Tip for the next session:** open
 `src/openings/lessons.ts` line ~1855 for the Pirc block as the gold
@@ -150,8 +161,9 @@ Then in Claude:
 ## Repo state at last commit
 
 - Branch: `main`
-- Last commit: `4e8f708` (Pirc deep-rewrite)
+- Last commit: `86514e6` (Italian Game deep-rewrite) + this RESUME/DEPLOY commit
 - Tests: 105 passing, 7 IDB-skipped
 - Typecheck: clean (strict + exactOptionalPropertyTypes)
 - Lint: clean (max-warnings 0)
-- Dev server: 5180 (was running, stopped at session end)
+- Production build: 148 MB dist (engine 85 MB + puzzles 55 MB + JS/CSS 7 MB)
+- Dev server: 5180 (still running at session end — stop with `mcp__Claude_Preview__preview_stop`)
