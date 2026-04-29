@@ -1,9 +1,17 @@
 # Resume plan — pick up here next session
 
-> Last touched 2026-04-29 after the Italian Game deep-rewrite
-> (`86514e6`) + the home-lab deploy prep doc (this commit). Pirc
-> (`4e8f708`) and Puzzles tab (`4faab94`) shipped the prior session.
-> All 105 tests pass; main is clean.
+> Last touched 2026-04-29 with three landings:
+>   - QA pass: 25 factual fixes across the 96 tabiyas + Stockfish-
+>     backed eval audit + chess.js tactical verification (commits
+>     `d382b62` / `c98c72d` / `6facc2f`).
+>   - Docker deploy stack ready (`af5868c`): `Dockerfile`,
+>     `docker-compose.yml`, `deploy/nginx.conf`, `deploy/Caddyfile`.
+>   - Phase 1+2+3 amplifier features (`ae49c12` / `7e93662` /
+>     `d149149`): structured speech bubble + on-board overlays +
+>     pawn skeleton + Test mode SRS + inline puzzle solver.
+>
+> 138 tests pass; main is clean. **Top priority for the next
+> session: opening course expansion — see `docs/OPENING_EXPANSION_PLAN.md`.**
 
 ---
 

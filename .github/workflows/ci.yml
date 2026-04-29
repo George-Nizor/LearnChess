@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel any in-progress run for the same ref when a new one starts.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      # Skip the heavy vendor:engine + build:puzzles steps in CI — they
+      # need ~280 MB of network downloads and 30s of CPU just to set up
+      # for typecheck/lint/tests. The unit tests cover everything
+      # except the puzzle-DB ingest pipeline (which has no automated
+      # tests of its own).
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --run
+
+  # The Docker image build is verified separately so a slow build
+  # doesn't gate every PR. Triggers only on main and on PRs that
+  # touch deploy-related files.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: |
+      github.event_name == 'push' ||
+      contains(toJSON(github.event.pull_request.changed_files), 'Dockerfile') ||
+      contains(toJSON(github.event.pull_request.changed_files), 'docker-compose.yml') ||
+      contains(toJSON(github.event.pull_request.changed_files), 'deploy/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (verify only — not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: learnchess:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

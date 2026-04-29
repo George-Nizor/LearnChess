@@ -156,9 +156,19 @@ h3 { font-weight: 500; }
   width: min(80vh, 90vw, 640px);
   max-width: 100%;
   aspect-ratio: 1 / 1;
+  height: auto;          /* required so aspect-ratio actually controls height */
   position: relative;
   flex-shrink: 1;
   min-width: 0;
+  /* Bug fix 2026-04-29: in grid + flex parents the default
+     `align-items: stretch` was stretching the host vertically to the
+     tallest sibling (e.g. /play's right-hand sidebar with all the
+     controls). That stretch overrode aspect-ratio and gave us a
+     squished board (640w × 691h). align-self: start opts out of the
+     stretch so the host keeps its declared aspect ratio. justify-self
+     start prevents row-axis stretch in case that path ever triggers. */
+  align-self: start;
+  justify-self: start;
 }
 .cg-board-host > .cg-wrap {
   width: 100% !important;
