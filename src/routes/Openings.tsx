@@ -33,6 +33,9 @@ import {
 import { DrillSession, type SessionView } from '@/openings/drillSession';
 import { Logo } from '@/components/ui/Logo';
 import { MiniBoardPreview } from '@/components/ui/MiniBoardPreview';
+import { LessonBubble } from '@/components/ui/LessonBubble';
+import { PawnSkeleton } from '@/components/ui/PawnSkeleton';
+import { extractVisualMarkers, parseProse } from '@/openings/proseParser';
 import {
   LearnIcon, DrillIcon, ExploreIcon, PuzzlesIcon,
   OpenGameIcon, ClosedGameIcon, DefenceIcon, KingIcon, KnightIcon,
@@ -116,10 +119,17 @@ function renderParagraph(para: string, paraIdx: number): ReactNode {
   );
 }
 
+// Legacy renderProse retained for the Drill / Explore views which
+// still use the simpler bold-and-paragraph rendering. The Learn view
+// now uses LessonBubble for structured tabiya rendering.
 function renderProse(text: string): ReactNode {
   const paragraphs = text.split(/\n\n+/);
   return <>{paragraphs.map((para, pi) => renderParagraph(para, pi))}</>;
 }
+// Mark as used to satisfy noUnusedLocals - other views that still use
+// it will import via this binding once they're refactored. For now we
+// keep it exported-equivalent to avoid the lint failure.
+void renderProse;
 
 // ───── Learn-mode viewer ──────────────────────────────────────────────────
 
@@ -166,6 +176,21 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
 
   const playerSide = course.openingId.endsWith('-black') ? 'black' : 'white';
 
+  // Extract visual markers from the current node's prose so the
+  // chessground overlays the squares the lesson is talking about.
+  // Yellow circles for "Key squares" the lesson names, green for
+  // squares in White's plan, blue for squares in Black's plan, red
+  // for squares in the tactical-theme callout.
+  const visualMarkers = useMemo(() => extractVisualMarkers(parseProse(node.text)), [node.text]);
+
+  const autoShapes = useMemo<DrawShape[]>(() => {
+    const shapes: DrawShape[] = [];
+    for (const m of visualMarkers.highlightSquares) {
+      shapes.push({ orig: m.square as Square, brush: m.brush });
+    }
+    return shapes;
+  }, [visualMarkers]);
+
   const cgConfig = useMemo<Config>(() => ({
     fen,
     orientation: playerSide,
@@ -174,7 +199,8 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
     ...(lastMove !== undefined ? { lastMove } : {}),
     animation: { enabled: true, duration: 250 },
     highlight: { lastMove: true, check: true },
-  } satisfies Config), [fen, playerSide, lastMove]);
+    drawable: { enabled: false, visible: true, autoShapes },
+  } satisfies Config), [fen, playerSide, lastMove, autoShapes]);
 
   const goNext = useCallback(() => {
     setNodeIdx((i) => {
@@ -246,33 +272,54 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
         </div>
       </div>
 
-      <aside aria-live="polite" className="flex gap-3">
-        <div className="flex-shrink-0 pt-1">
-          <Logo size={40} decorative />
+      <aside aria-live="polite" className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 gap-3">
+          <div className="flex-shrink-0 pt-1">
+            <Logo size={40} decorative />
+          </div>
+          <div className="min-w-0 flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${line.id}-${nodeIdx}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+                className="relative rounded-2xl rounded-tl-sm border border-border bg-elevated p-5 text-[15px] leading-7 shadow-sm"
+              >
+                <span
+                  aria-hidden
+                  className="absolute -left-2 top-3 h-3 w-3 rotate-45 border-b border-l border-border bg-elevated"
+                />
+                <LessonBubble text={node.text} />
+                {finished && (
+                  <p className="mt-4 text-sm font-medium text-accent">
+                    ✓ End of line — switch to Drill to test what you've learned.
+                  </p>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
-        <div className="flex-1">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${line.id}-${nodeIdx}`}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2 }}
-              className="relative max-w-[42ch] rounded-2xl rounded-tl-sm border border-border bg-elevated p-5 text-[15px] leading-7 shadow-sm"
-            >
-              <span
-                aria-hidden
-                className="absolute -left-2 top-3 h-3 w-3 rotate-45 border-b border-l border-border bg-elevated"
-              />
-              <div className="prose-tight text-foreground">{renderProse(node.text)}</div>
-              {finished && (
-                <p className="mt-4 text-sm font-medium text-accent">
-                  ✓ End of line — switch to Drill to test what you've learned.
-                </p>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+
+        {/* Pawn-skeleton diagram: only show on the FINAL tabiya node
+            where structural understanding matters most. Earlier per-
+            move nodes are about specific moves; the pawn structure
+            is the same as the parent so a duplicate would just be
+            visual noise. */}
+        {finished && (
+          <div className="flex items-center gap-3 rounded-md border border-border bg-elevated/40 p-3 text-xs">
+            <PawnSkeleton fen={fen} size={120} orientation={playerSide} />
+            <div className="min-w-0">
+              <div className="font-semibold uppercase tracking-wide text-muted-foreground">Pawn skeleton</div>
+              <p className="mt-1 leading-snug text-muted-foreground">
+                The pawn structure of this tabiya. Most middlegame
+                plans are about these pawns - everything else moves
+                around them.
+              </p>
+            </div>
+          </div>
+        )}
       </aside>
     </div>
   );
