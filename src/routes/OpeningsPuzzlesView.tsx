@@ -11,25 +11,28 @@
  * (Explore), and sharpens the tactical patterns the opening produces
  * (Puzzles).
  *
- * Approach (intentionally not a mini puzzle solver):
- *   - We render a SUMMARY of what's available — total count, theme
- *     breakdown, rating range, a sample of 6 random puzzles.
- *   - The primary CTA jumps to /tactics?opening=<slug> which hydrates
- *     the Tactics filter on first mount (cross-link plumbed previously).
- *   - Sample puzzles are clickable and route the same way; in a future
- *     pass we can surface a single-puzzle deep link.
+ * Two render modes:
+ *   - 'overview' (default): summary card + theme chips + 6 sample
+ *     positions. The user can pick a sample to jump straight into
+ *     solving, OR jump to the full /tactics route via the CTA.
+ *   - 'solving': inline PuzzleSolver scoped to this opening's slug.
+ *     SRS card persistence reuses the same scheduler as the main
+ *     Tactics route, so progress here counts toward the user's
+ *     overall puzzle review queue.
  *
- * Why a separate file: the Openings route is already 1k+ lines. Pulling
- * a new pillar into its own module keeps the diff legible and the
- * future "real inline solver" version contained.
+ * The "Solve here" UX was the missing piece: previously the user had
+ * to leave the opening's context to actually solve. Now they stay
+ * inside the Pirc/Italian/etc. lesson flow and the puzzles arrive
+ * pre-filtered.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Chessground } from '@/chess/board';
 import { PuzzlesDb, type PuzzleRow } from '@/puzzles/db';
 import { labelFor } from '@/puzzles/themes';
 import { openingSlugPrefix } from '@/openings/slug';
+import { PuzzleSolver } from '@/components/ui/PuzzleSolver';
 import type { Repertoire } from '@/openings';
 import type { Config } from 'chessground/config';
 import { Chess } from 'chess.js';
@@ -62,6 +65,13 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
   const [error, setError] = useState<string | null>(null);
   const [sample, setSample] = useState<PuzzleRow[] | null>(null);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  // Two render modes - overview (summary cards) and solving (inline
+  // PuzzleSolver). User toggles via the "Solve here" CTA.
+  const [solving, setSolving] = useState(false);
+
+  // Solving mode owns its own queue. Loaded fresh from the DB each
+  // time we enter solve mode, replenished automatically when empty.
+  const queueRef = useRef<PuzzleRow[]>([]);
 
   // Load DB once; re-run the slug-scoped query whenever the active
   // repertoire (and therefore slug) changes.
@@ -168,6 +178,49 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
     );
   }
 
+  // Solve mode renders the inline PuzzleSolver. The loadNext closure
+  // pulls from a queue of 50 puzzles for this opening; when the
+  // queue empties we re-query the DB for a fresh batch (RANDOM()
+  // ordering ensures we don't see the same 50 forever). Persisting
+  // is on so attempts feed the same SR/dashboard pipeline as the
+  // main /tactics route.
+  if (solving) {
+    const loadNext = (): PuzzleRow | null => {
+      if (queueRef.current.length === 0) {
+        if (!db) return null;
+        queueRef.current = db.query({
+          openingTags: [slugLike],
+          limit: 25,
+          ratingMin: 600,
+          ratingMax: 3200,
+        });
+      }
+      return queueRef.current.shift() ?? null;
+    };
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold">
+            Solving puzzles from <span className="text-accent">{repertoire.name}</span>
+          </h3>
+          <button
+            type="button"
+            onClick={() => setSolving(false)}
+            className="rounded border border-border bg-background px-3 py-1.5 text-xs hover:bg-muted"
+          >
+            ← Back to overview
+          </button>
+        </div>
+        <PuzzleSolver
+          loadNext={loadNext}
+          persist
+          footerLabel={`Drawn from real Lichess games tagged "${repertoire.name}". Spaced-repetition cards persist to your overall puzzle queue.`}
+          fullTacticsUrl={`/tactics?opening=${encodeURIComponent(slug)}`}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {/* HEADER — count + rating band + primary CTA. */}
@@ -183,12 +236,23 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
               : 'Drawn from real Lichess games tagged with this opening.'}
           </p>
         </div>
-        <Link
-          to={`/tactics?opening=${encodeURIComponent(slug)}`}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground hover:opacity-90"
-        >
-          Train all in Tactics →
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Primary CTA: solve INLINE without leaving the opening. */}
+          <button
+            type="button"
+            onClick={() => { queueRef.current = []; setSolving(true); }}
+            className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground hover:opacity-90"
+          >
+            Solve here →
+          </button>
+          {/* Secondary: jump to /tactics for the full filter chrome. */}
+          <Link
+            to={`/tactics?opening=${encodeURIComponent(slug)}`}
+            className="rounded-md border border-border bg-background px-3 py-2 text-xs hover:bg-muted"
+          >
+            Open in full Tactics
+          </Link>
+        </div>
       </div>
 
       {/* THEME CHIPS — show what kind of tactics actually come up. */}
