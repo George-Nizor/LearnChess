@@ -1,0 +1,103 @@
+# LearnChess — home-lab Docker Compose.
+#
+# Default profile: assumes you already have a reverse proxy
+# (Caddy / Traefik / nginx-proxy-manager / etc.) handling HTTPS and
+# domain routing for your other services. The image just listens
+# on port 8080 and your proxy points at it.
+#
+# Standalone profile (commented at the bottom): adds a Caddy sidecar
+# that terminates HTTPS via Let's Encrypt for users without an
+# existing proxy. Uncomment when you need it.
+#
+# Quick start:
+#   docker compose up -d --build           # build + run
+#   docker compose logs -f learnchess      # tail logs
+#   docker compose pull && docker compose up -d  # update from registry
+#   docker compose down                    # stop + remove
+#
+# Updating content:
+#   The puzzle DB freshens monthly upstream and the Stockfish WASM
+#   gets occasional bug fixes. Either:
+#     (a) Add a cron entry that runs `docker compose build --no-cache learnchess`
+#         once a month — vendor:engine + build:puzzles run inside the
+#         build, the new image gets pinned to the `latest` tag, and
+#         `up -d` swaps it in.
+#     (b) Build on a separate machine and push to a registry; the
+#         home-server just pulls.
+
+services:
+  learnchess:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: learnchess:latest
+    container_name: learnchess
+    restart: unless-stopped
+
+    # Expose 8080 so your existing reverse proxy can route to this
+    # container. Comment out and use the proxy's network alias if
+    # you'd rather not bind a host port at all.
+    ports:
+      - "${LEARNCHESS_PORT:-8080}:8080"
+
+    # If your reverse proxy is in a Docker network, attach this
+    # service to it so the proxy can reach `learnchess:8080`
+    # without going through the host. Adjust the network name to
+    # match yours (this is the typical Caddy / Traefik pattern).
+    # networks:
+    #   - proxy
+    #   - default
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # The container is read-only at runtime — there is no per-user
+    # state stored server-side. Mount nothing. The only writes nginx
+    # does are to its own /var/cache and /var/run, both already in
+    # tmpfs in the base image.
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+
+    # Stockfish single-threaded WASM is content-bound during analysis;
+    # the rest of the workload is just nginx serving static files. A
+    # tight resource cap is fine.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+# ─── Optional: standalone Caddy reverse proxy for HTTPS ──────────
+# Uncomment everything below if you DON'T already have a proxy and
+# want LetsEncrypt-managed HTTPS via Caddy. Set CHESS_DOMAIN to your
+# real domain; for LAN-only use, see Caddy's `tls internal` docs.
+#
+#   CADDY_DOMAIN=chess.example.com docker compose --profile standalone up -d
+#
+#   caddy:
+#     image: caddy:2-alpine
+#     container_name: learnchess-caddy
+#     restart: unless-stopped
+#     profiles: ["standalone"]
+#     ports:
+#       - "80:80"
+#       - "443:443"
+#     environment:
+#       CADDY_DOMAIN: "${CADDY_DOMAIN:-chess.localhost}"
+#     volumes:
+#       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+#       - caddy_data:/data
+#       - caddy_config:/config
+#     depends_on:
+#       learnchess:
+#         condition: service_healthy
+#
+# volumes:
+#   caddy_data:
+#   caddy_config:

@@ -1,0 +1,38 @@
+# Optional Caddy config for the standalone-HTTPS Compose profile.
+# Only needed if you DON'T have an existing reverse proxy.
+#
+# - Public domain: Caddy auto-provisions a Let's Encrypt cert.
+# - LAN-only / IP-only: replace `{$CADDY_DOMAIN}` with your hostname
+#   and use `tls internal` (Caddy issues a cert from its own CA;
+#   you'll need to install Caddy's root CA on each client browser
+#   for a trust-without-warning experience).
+#
+# Caddy compresses dynamically (encode br gzip) which is fine even
+# though our nginx already pre-compresses — Caddy will respect the
+# Content-Encoding header from the upstream nginx if present, or
+# fall back to its own compression.
+
+{$CADDY_DOMAIN} {
+    encode br gzip
+
+    # If you're on a public domain, Caddy handles ACME automatically.
+    # If you're on a LAN-only setup, swap the line below for:
+    #   tls internal
+    #
+    # And install Caddy's root CA on each device:
+    #   docker exec learnchess-caddy caddy trust
+    # (Then export the cert and install on phones / other browsers.)
+
+    reverse_proxy learnchess:8080 {
+        # Pass standard X-Forwarded-* headers so the SPA's link
+        # generation (analysis ?fen= deep links etc.) sees the
+        # right host/scheme.
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+    }
+
+    # HSTS — only enable AFTER you've confirmed HTTPS works for
+    # all your devices. Once HSTS is set, browsers refuse to load
+    # the site over HTTP for the max-age window.
+    # header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}

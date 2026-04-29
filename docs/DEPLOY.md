@@ -1,9 +1,27 @@
 # Deploy — home-lab self-hosting
 
-> Status: **preparation, not yet wired up.** Templates and notes below are
-> ready to drop into a real deployment but no `docker-compose.yml`,
-> `Dockerfile`, or CI workflow has been added to the repo yet. Last
-> verified production build: 2026-04-28 (commit `86514e6`).
+> Status: **wired up.** The repo now ships a multi-stage `Dockerfile`,
+> `docker-compose.yml`, and `deploy/nginx.conf`. The Compose default
+> profile assumes you have an existing reverse proxy (Caddy/Traefik/
+> nginx-proxy-manager); a `standalone` profile with bundled Caddy is
+> commented in for users who don't.
+
+## Quick start
+
+```bash
+# behind your existing reverse proxy:
+docker compose up -d --build
+# point your proxy at host:8080
+
+# standalone HTTPS via bundled Caddy (uncomment the caddy service in
+# docker-compose.yml first), then:
+CADDY_DOMAIN=chess.example.com docker compose --profile standalone up -d
+```
+
+That's the whole deploy. The image takes ~3 minutes to build from
+scratch (the `npm run build:puzzles` step does a 280 MB Lichess CSV
+download + 30s of CPU, layer-cached on subsequent builds unless
+package.json or scripts change).
 
 ## What you're shipping
 
@@ -230,65 +248,52 @@ server {
 }
 ```
 
-### Option C — Docker / Compose
+### Option C — Docker / Compose (recommended; what the repo ships)
 
-Multi-stage Dockerfile, ~150 MB final image. Good for keeping the deploy
-self-contained on a homelab Kubernetes cluster or Docker Swarm.
+The repo includes a real `Dockerfile`, `docker-compose.yml`, and
+`deploy/nginx.conf`. You get a ~150 MB final image (nginx + brotli +
+the static dist) that runs as the unprivileged `nginx` user on port
+8080.
 
-`Dockerfile` (drop into repo root when ready):
+The default Compose profile assumes you already have a reverse
+proxy fronting your home-lab services (Caddy, Traefik, nginx-proxy-
+manager, HAProxy, etc.) — it just exposes port 8080 and lets your
+proxy handle HTTPS + domain routing. There's also an opt-in
+`standalone` profile (commented out in compose) that adds a Caddy
+sidecar with auto Let's Encrypt for users without an existing proxy.
 
-```dockerfile
-# ── build stage ──────────────────────────────────────────────
-FROM node:22-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-# Engine + puzzles must be vendored before build. Either commit
-# them into the repo image OR fetch them here:
-RUN npm run vendor:engine \
- && npm run build:puzzles \
- && npm run build
-
-# ── pre-compress static assets ───────────────────────────────
-FROM alpine:3 AS compress
-RUN apk add --no-cache brotli gzip findutils
-WORKDIR /dist
-COPY --from=build /app/dist /dist
-RUN find /dist -type f \
-        \( -name '*.js' -o -name '*.css' -o -name '*.json' \
-           -o -name '*.wasm' -o -name '*.svg' -o -name '*.db' \
-           -o -name '*.html' \) \
-        ! -name '*.br' ! -name '*.gz' \
-    | xargs -I{} sh -c 'brotli -q 6 -k "{}" && gzip -k -9 "{}"'
-
-# ── runtime: nginx with brotli module ────────────────────────
-FROM ghcr.io/nginxinc/nginx-unprivileged:1.27-alpine
-COPY --from=compress /dist /usr/share/nginx/html
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 8080
-```
-
-`docker-compose.yml`:
-
-```yaml
-services:
-  learnchess:
-    build: .
-    image: learnchess:latest
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    # If you have Caddy / Traefik / HAProxy in front, drop the port
-    # binding and put this on the proxy network instead.
-```
-
-Build + run:
 ```bash
-docker compose build
-docker compose up -d
-# Then point Caddy / nginx at http://localhost:8080
+# Behind your existing reverse proxy
+docker compose up -d --build
+# Point your proxy at <docker-host>:8080
+
+# OR standalone with bundled Caddy + Let's Encrypt
+# (uncomment the `caddy:` service in docker-compose.yml first)
+CADDY_DOMAIN=chess.example.com docker compose --profile standalone up -d
+
+# Update flow
+docker compose pull && docker compose up -d
+# OR rebuild monthly to pick up new Stockfish + puzzles:
+docker compose build --no-cache learnchess && docker compose up -d
 ```
+
+What the build does internally (3 stages, see `Dockerfile`):
+
+1. **Builder** (`node:22-alpine`): `npm ci` → `npm run vendor:engine`
+   → `npm run build:puzzles` → `npm run build`. Output: `/app/dist`
+   (~150 MB).
+2. **Compressor** (`alpine:3.20` + brotli + gzip): walks the dist,
+   pre-compresses every text-like asset (.js, .css, .wasm, .db,
+   .json, .svg) at brotli q6 + gzip -9 so nginx serves precompressed
+   variants without per-request CPU.
+3. **Runtime** (`fholzer/nginx-brotli`): ~15 MB Alpine nginx with
+   the brotli module baked in. Drops to non-root, listens on 8080,
+   reads `deploy/nginx.conf` for vhost + cache headers.
+
+The image is read-only at runtime (`read_only: true` in compose) —
+nothing writes to disk except nginx's tmpfs cache. There's no
+per-user state stored server-side, so there's nothing to back up
+on the server.
 
 ## Persistence model — what to back up (nothing on the server)
 
