@@ -103,6 +103,36 @@ describe('parseProse - section detection', () => {
     expect(sections[0]?.kind).toBe('flat');
   });
 
+  it('detects "Common deviations:" callouts as a distinct section', () => {
+    // The deviation marker is for opponent sidelines (legitimate
+    // alternatives to the mainline), distinct from "Common mistake"
+    // which is about traps/blunders to punish.
+    const text =
+      "**6.O-O** — White castles. You've reached the main tabiya. " +
+      "Black's plan: **...c6** + **...b5**. " +
+      "Common deviations: instead of **6...O-O** Black sometimes plays **6...Nc6** " +
+      "(the Yugoslav setup). Answer with **7.h3** to keep the bishop active.";
+    const sections = parseProse(text);
+    const kinds = sections.map((s) => s.kind);
+    expect(kinds).toContain('common-deviation');
+    const dev = sections.find((s) => s.kind === 'common-deviation');
+    expect(dev?.body).toContain('6...Nc6');
+  });
+
+  it('does not confuse "Common mistake:" with "Common deviation:"', () => {
+    const text =
+      "Intro. Common mistake: **...h6** too early weakens **g6**. " +
+      "Common deviations: instead of **...c5** Black sometimes plays **...e5**.";
+    const sections = parseProse(text);
+    const kinds = sections.map((s) => s.kind);
+    expect(kinds).toContain('common-mistake');
+    expect(kinds).toContain('common-deviation');
+    // Order: mistake first, deviation second
+    const mistakeIdx = kinds.indexOf('common-mistake');
+    const deviationIdx = kinds.indexOf('common-deviation');
+    expect(mistakeIdx).toBeLessThan(deviationIdx);
+  });
+
   it('handles tabiya with both white-plan and black-plan', () => {
     const text =
       "Intro sentence here. " +

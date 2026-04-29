@@ -82,6 +82,11 @@ const SECTION_STYLES: Partial<Record<SectionKind, SectionStyle>> = {
   'tactical-theme': { label: 'Tactical theme', pillClass: 'bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200' },
   'verdict':        { label: 'Modern theory',  pillClass: 'bg-muted text-muted-foreground' },
   'common-mistake': { label: 'Common mistake', pillClass: 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200' },
+  // Common deviations = legitimate opponent sidelines (NOT mistakes).
+  // Distinct cyan/violet pill so the user reads "this is what to do
+  // when they DON'T play the mainline" — separate cognitive slot from
+  // common-mistake (orange = "they blundered, punish them").
+  'common-deviation': { label: 'If they deviate', pillClass: 'bg-violet-100 text-violet-900 dark:bg-violet-900/40 dark:text-violet-200' },
 };
 
 function renderSection(section: ProseSection, idx: number): ReactNode {

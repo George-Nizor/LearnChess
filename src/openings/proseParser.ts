@@ -138,14 +138,15 @@ export function parseInline(segment: string): InlineSpan[] {
 // ────────────────────────────────────────────────────────────────────
 
 export type SectionKind =
-  | 'intro'           // opening sentences before any "X's plan" marker
-  | 'white-plan'      // "White's plan from here: ..."
-  | 'black-plan'      // "Black's plan (from here): ..."
-  | 'key-squares'     // "Two squares (to obsess about): X and Y."
-  | 'tactical-theme'  // "Tactical theme: ..."
-  | 'verdict'         // "Modern theory rates ..." / closing remarks
-  | 'common-mistake'  // future: "Common mistake: ..." (not yet authored)
-  | 'flat';           // fallback when no sections detected (per-move prose)
+  | 'intro'             // opening sentences before any "X's plan" marker
+  | 'white-plan'        // "White's plan from here: ..."
+  | 'black-plan'        // "Black's plan (from here): ..."
+  | 'key-squares'       // "Two squares (to obsess about): X and Y."
+  | 'tactical-theme'    // "Tactical theme: ..."
+  | 'verdict'           // "Modern theory rates ..." / closing remarks
+  | 'common-mistake'    // "Common mistake: ..." (e.g. "...h6 too early")
+  | 'common-deviation'  // "Common deviations: ..." (opponent doesn't follow the mainline)
+  | 'flat';             // fallback when no sections detected (per-move prose)
 
 export interface ProseSection {
   kind: SectionKind;
@@ -207,6 +208,11 @@ export function parseProse(text: string): ProseSection[] {
     { kind: 'tactical-theme', re: /(?:^|\.\s+|\n\s*)(Tactical\s+themes?[^:\n]{0,60}:\s+)/i },
     { kind: 'verdict',        re: /(?:^|\.\s+|\n\s*)(Modern\s+(?:theory|engines?)\s+(?:considers?|calls?|rates?|says?)\s+)/i },
     { kind: 'common-mistake', re: /(?:^|\.\s+|\n\s*)(Common\s+mistakes?[^:\n]{0,40}:\s+)/i },
+    // "Common deviations:" / "Common deviation:" / "If Black plays X instead:"
+    // Specifically for opponent-deviation callouts: what to do when the
+    // opponent doesn't follow the mainline. Distinct from common-mistake
+    // (which is about traps/errors); deviations are legitimate sidelines.
+    { kind: 'common-deviation', re: /(?:^|\.\s+|\n\s*)(Common\s+deviations?[^:\n]{0,40}:\s+)/i },
   ];
 
   // Find all marker positions in the text.
