@@ -37,11 +37,12 @@ import { LessonBubble } from '@/components/ui/LessonBubble';
 import { PawnSkeleton } from '@/components/ui/PawnSkeleton';
 import { extractVisualMarkers, parseProse } from '@/openings/proseParser';
 import {
-  LearnIcon, DrillIcon, ExploreIcon, PuzzlesIcon,
+  LearnIcon, DrillIcon, ExploreIcon, PuzzlesIcon, TestIcon,
   OpenGameIcon, ClosedGameIcon, DefenceIcon, KingIcon, KnightIcon,
   type ChessIconProps,
 } from '@/components/ui/ChessIcons';
 import { PuzzlesView } from './OpeningsPuzzlesView';
+import { OpeningsTestView } from './OpeningsTestView';
 import type { Config } from 'chessground/config';
 import type { DrawShape } from 'chessground/draw';
 
@@ -54,7 +55,7 @@ const CATEGORY_ICONS: Record<string, (p: ChessIconProps) => ReactNode> = {
   indian: KingIcon,
 };
 
-type Mode = 'learn' | 'drill' | 'explore' | 'puzzles';
+type Mode = 'learn' | 'drill' | 'explore' | 'puzzles' | 'test';
 type CategoryFilter = 'open' | 'semi-open' | 'closed' | 'flank' | 'indian' | 'imported';
 type ColorFilter = 'white' | 'black';
 
@@ -860,11 +861,24 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
       )}
 
       <div className="flex items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
-        {(['learn', 'drill', 'explore', 'puzzles'] as Mode[]).map((m) => {
+        {(['learn', 'drill', 'explore', 'puzzles', 'test'] as Mode[]).map((m) => {
           const isActive = mode === m;
-          const disabled = m === 'learn' && !course;
-          const label = m === 'learn' ? 'Learn' : m === 'drill' ? 'Drill' : m === 'explore' ? 'Explore' : 'Puzzles';
-          const Icon = m === 'learn' ? LearnIcon : m === 'drill' ? DrillIcon : m === 'explore' ? ExploreIcon : PuzzlesIcon;
+          // 'test' shares the 'no course = disabled' policy with
+          // 'learn' because both depend on the lesson tabiya prose
+          // existing for this opening.
+          const disabled = (m === 'learn' || m === 'test') && !course;
+          const label =
+            m === 'learn' ? 'Learn' :
+            m === 'drill' ? 'Drill' :
+            m === 'explore' ? 'Explore' :
+            m === 'puzzles' ? 'Puzzles' :
+            'Test';
+          const Icon =
+            m === 'learn' ? LearnIcon :
+            m === 'drill' ? DrillIcon :
+            m === 'explore' ? ExploreIcon :
+            m === 'puzzles' ? PuzzlesIcon :
+            TestIcon;
           return (
             <button
               key={m}
@@ -917,6 +931,9 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
           )}
           {mode === 'puzzles' && (
             <PuzzlesView repertoire={repertoire} />
+          )}
+          {mode === 'test' && (
+            <OpeningsTestView repertoire={repertoire} />
           )}
         </motion.div>
       </AnimatePresence>

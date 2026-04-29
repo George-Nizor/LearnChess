@@ -17,6 +17,10 @@
  *   v3 — replace `lessonProgress` with `lineProgress` (per-line within a
  *        course; supports the multiple-lines-per-opening UX). Pre-launch
  *        user data, so the v2 store is dropped outright.
+ *   v4 — add `testCards` for the Test-mode SRS scheduler. Test questions
+ *        are auto-generated from each tabiya's parsed sections (key
+ *        squares + plans + tactical themes); answering grades the card
+ *        with the same SM-2-lite ladder the move drill uses.
  */
 
 import { openDB } from 'idb';
@@ -32,6 +36,37 @@ export interface LineProgress {
   discoveredNodeIdx: number;
   /** True if user has reached the last node of this line at least once. */
   completed: boolean;
+  lastSeenAt: number;
+}
+
+/**
+ * Test-mode SRS card. Composite key `[openingId, questionId]`.
+ *
+ * Mirrors the SM-2-lite scheduler used for repMoves (learning step
+ * 0..3 then review interval scaling by ease, default 2.5, floor 1.3).
+ * The same `onCorrect` / `onWrong` from `scheduler.ts` advances these
+ * cards' state - we just adapt the field shape.
+ */
+export interface TestCard {
+  /** Matches OPENING_COURSES key, e.g. 'pirc-black'. */
+  openingId: string;
+  /** Stable content-derived question ID (see testQuestions.ts). */
+  questionId: string;
+  /** Learning ladder step (0..3) or null when graduated. */
+  learningStep: number | null;
+  /** When learning, when this card is next due. */
+  learningDueAt: number | null;
+  /** Review interval in days; null until graduated; 0 sentinel = needs re-graduation. */
+  reviewIntervalDays: number | null;
+  /** When in review, when this card is next due. */
+  reviewDueAt: number | null;
+  /** Ease factor (default 2.5, floor 1.3). */
+  reviewEase: number;
+  /** Total times answered (success + fail). */
+  attempts: number;
+  /** Correct answer count (for accuracy display). */
+  successes: number;
+  /** Last-attempted timestamp for "recent activity" sorting. */
   lastSeenAt: number;
 }
 
@@ -61,10 +96,19 @@ interface OpeningsDBSchema extends DBSchema {
     value: LineProgress;
     indexes: { 'by-rep': number };
   };
+  testCards: {
+    key: [string, string];                    // [openingId, questionId]
+    value: TestCard;
+    indexes: {
+      'by-opening': string;
+      'by-due-learning': [string, number];    // [openingId, learningDueAt]
+      'by-due-review':   [string, number];    // [openingId, reviewDueAt]
+    };
+  };
 }
 
 const DB_NAME = 'learnchess-openings';
-const DB_VERSION = 3;                // bumped to replace lessonProgress with lineProgress
+const DB_VERSION = 4;                // v4 adds testCards store
 
 let dbPromise: Promise<IDBPDatabase<OpeningsDBSchema>> | null = null;
 
@@ -99,6 +143,17 @@ export function openingsDB(): Promise<IDBPDatabase<OpeningsDBSchema>> {
         if (!db.objectStoreNames.contains('lineProgress')) {
           const store = db.createObjectStore('lineProgress', { keyPath: ['repertoireId', 'lineId'] });
           store.createIndex('by-rep', 'repertoireId');
+        }
+        // v4: testCards store for the Test-mode SRS scheduler. The
+        // composite key [openingId, questionId] is unique per question;
+        // the openingId index supports "show me all test cards for the
+        // Pirc"; the by-due indexes support "what's due NOW for this
+        // opening" without scanning every card.
+        if (!db.objectStoreNames.contains('testCards')) {
+          const store = db.createObjectStore('testCards', { keyPath: ['openingId', 'questionId'] });
+          store.createIndex('by-opening', 'openingId');
+          store.createIndex('by-due-learning', ['openingId', 'learningDueAt']);
+          store.createIndex('by-due-review',   ['openingId', 'reviewDueAt']);
         }
       },
     });
@@ -154,6 +209,29 @@ export async function listLineProgress(repertoireId: number): Promise<LineProgre
 export async function resetLineProgress(repertoireId: number, lineId: string): Promise<void> {
   const db = await openingsDB();
   await db.delete('lineProgress', [repertoireId, lineId]);
+}
+
+// ──────────── Test cards (Test-mode SRS) ─────────────────────────────────
+
+/**
+ * Get a single test card by its composite key, or undefined if the
+ * user has never answered this question.
+ */
+export async function getTestCard(openingId: string, questionId: string): Promise<TestCard | undefined> {
+  const db = await openingsDB();
+  return db.get('testCards', [openingId, questionId]);
+}
+
+/** Persist a test card (insert or update). */
+export async function putTestCard(card: TestCard): Promise<void> {
+  const db = await openingsDB();
+  await db.put('testCards', card);
+}
+
+/** All test cards for a given opening. Used to compute "X due now". */
+export async function listTestCards(openingId: string): Promise<TestCard[]> {
+  const db = await openingsDB();
+  return db.getAllFromIndex('testCards', 'by-opening', openingId);
 }
 
 // ──────────── Repertoires ────────────────────────────────────────────────
