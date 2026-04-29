@@ -1,17 +1,39 @@
 # Resume plan — pick up here next session
 
-> Last touched 2026-04-29 with three landings:
+> Last touched 2026-04-30. Most recent landing: Phase 1a of the
+> opening-expansion plan — `'common-deviation'` schema added to the
+> prose parser + violet "If they deviate" pill in `LessonBubble`,
+> plus deviation prose authored on all 5 Pirc tabiyas as proof of
+> pattern (commit `92a7466`).
+>
+> **User feedback after seeing Phase 1a**: a static text bullet is
+> not engaging enough. They want the chess.com Opening Challenges
+> model — deviations as navigable branches the user can step
+> through, OR as challenge positions to solve against the engine.
+> Phase 1b (rolling text deviations to other 12 openings) is **on
+> hold**. The new path is documented at the top of
+> `docs/OPENING_EXPANSION_PLAN.md` under "Engagement-first
+> deviation design".
+>
+> **Top priority for the next session: implement Phase 1b** — lift
+> the 13 existing Pirc text deviations into branched sibling lines
+> (option A in the engagement-first design). Schema-only change:
+> add `parentLineId` + `deviationFromMove` to `LineSpec`, render
+> deviations indented under their parent in the line picker.
+>
+> Earlier landings still relevant:
 >   - QA pass: 25 factual fixes across the 96 tabiyas + Stockfish-
 >     backed eval audit + chess.js tactical verification (commits
 >     `d382b62` / `c98c72d` / `6facc2f`).
 >   - Docker deploy stack ready (`af5868c`): `Dockerfile`,
 >     `docker-compose.yml`, `deploy/nginx.conf`, `deploy/Caddyfile`.
+>   - GitHub readiness + Play tab squish fix + expansion-plan
+>     authoring (`563fe0a`): README, LICENSE (GPL-3.0), CI workflow.
 >   - Phase 1+2+3 amplifier features (`ae49c12` / `7e93662` /
 >     `d149149`): structured speech bubble + on-board overlays +
 >     pawn skeleton + Test mode SRS + inline puzzle solver.
 >
-> 138 tests pass; main is clean. **Top priority for the next
-> session: opening course expansion — see `docs/OPENING_EXPANSION_PLAN.md`.**
+> 138 tests pass; main is clean.
 
 ---
 

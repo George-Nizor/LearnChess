@@ -1,5 +1,166 @@
 # Opening course expansion plan
 
+> **2026-04-30 status update — REVISED APPROACH for deviations.**
+> Phase 1a shipped (commit `92a7466`) the text-only "Common
+> deviations" pill on all 5 Pirc tabiyas as a proof of pattern.
+> User feedback after seeing it: a static text bullet isn't an
+> engaging way to teach deviations — they want the chess.com
+> Opening Challenges model, where each deviation is either a
+> navigable branch the user steps through OR a challenge position
+> the user has to solve against the engine. Phase 1b (rolling the
+> text approach to the other 12 openings) is **on hold pending
+> the new design below**. The Pirc text deviations stay shipped as
+> raw material that can be lifted into branched lines or challenge
+> stems; they're not wasted, just incomplete.
+>
+> The original three-option ladder (text callout → per-move
+> alternatives → true branching tree) is preserved further down for
+> reference, but the recommended path is now option 2.5: the
+> "engagement-first" hybrid described in the next section.
+
+## Engagement-first deviation design (the new direction)
+
+### What we're modelling
+
+[chess.com](https://chess.com) Opening Challenges and Chessable
+Move Trainer both treat deviations as first-class learning units:
+
+- The user is shown a position, the opponent makes a move (often a
+  deviation from what they expected), and the user has to find the
+  correct response.
+- Wrong answers get auto-undone with a hint; right answers advance.
+- After the line completes, the user sees a 1-2 sentence
+  explanation of why the response works.
+- Progress is tracked: each deviation has its own "mastered" flag
+  that feeds the SRS.
+
+This turns deviations from "passive information the user reads
+once" into "active reps the user actually owns".
+
+### Concrete UX for LearnChess
+
+Three integration points, ordered from cheapest to most ambitious:
+
+#### A. Branched lines in the existing Learn view
+
+Each existing line gets 1-3 sibling lines auto-tagged as
+"deviation of <parent line id>". Example:
+
+```
+Pirc - Classical (mainline: 4.Nf3 5.Be2 6.O-O)
+├─ Pirc - Classical: White plays 5.h3 first  (deviation, 4 plies)
+├─ Pirc - Classical: White plays 5.Be3 hybrid  (deviation, 5 plies)
+└─ Pirc - Classical: White plays 5.a4 prophylaxis  (deviation, 4 plies)
+```
+
+The line picker shows them indented under their parent with a
+"deviation" badge. The user can pick any of them and walk through
+move-by-move with the same Learn-view UX they already know — no
+new component to build, just data.
+
+**Schema impact**: add `parentLineId?: string` and
+`deviationFromMove?: number` (the ply where the deviation
+branches) to `LineSpec`. Drill mode picks them with lower
+weight than the parent mainline so the user doesn't see them
+constantly, but they appear in the rotation.
+
+**Authoring scope**: ~3 deviations per existing tabiya × 96
+tabiyas ≈ 288 short lines (3-6 plies each). Heavy but
+tractable; each deviation is a fraction of a full line.
+
+#### B. Challenge mode (the chess.com Opening Challenges analogue)
+
+A new mode alongside Learn / Drill / Explore / Puzzles / Test:
+**Challenges**. The user is dropped into a randomly selected
+deviation position with the side-to-move set to them. They have
+to find the correct move within 3 attempts.
+
+- 1st-try correct → 100% credit, advance.
+- 2nd-try correct (after wrong move + auto-undo) → 60% credit,
+  brief hint shown.
+- 3rd-try correct → 20% credit, full answer + explanation shown.
+- Failure → 0%, full solution walked through, position queued
+  for SRS replay.
+
+The mode reuses the existing Drill engine + chessground
+auto-undo + LessonBubble explanation pane — most of the
+plumbing is already in place. New surface: a "Challenges" tab
+that lists per-opening deviation positions with mastery
+percentage.
+
+**Why this is the win**: every other opening trainer has linear
+"play the mainline" mode plus a quiz mode. The deviations get
+shoehorned into one or the other. Doing them as a first-class
+mode gives them their own progress tracking, their own SRS
+queue, and their own muscle memory.
+
+#### C. Drill mode "surprise deviation" (stretch goal)
+
+Inside the existing Drill mode, with some probability (5-15%
+configurable), the engine plays a known deviation move instead
+of the mainline. The user has to recognise it and respond
+correctly. Wrong responses get the standard auto-undo + red
+flash.
+
+**Why deferred**: Drill mode currently picks lines and plays
+the scripted opponent moves. Adding stochastic deviations means
+forking the move-source mid-line, which is a Drill-engine
+change. Worth it for high-engagement reps but not the first
+thing to build.
+
+### Recommended phasing
+
+1. **Phase 1b (next session)**: lift the existing Pirc text
+   deviations into branched lines (option A). 13 deviations
+   become 13 short sibling lines. This is data-only — no new
+   UI. Gives us a working example of the format the line-picker
+   needs to render.
+2. **Phase 1c**: line-picker UI tweak — render deviation lines
+   indented under their parent with a small badge, lower the
+   drill-mode weighting.
+3. **Phase 1d**: roll the branched-line authoring across the
+   remaining 12 openings, 3 deviations per line on average.
+4. **Phase 2**: add the missing lines for the 4 thin openings
+   (Pirc, Vienna, Scandinavian, London) — independent of
+   deviations, fills the gap from below.
+5. **Phase 3**: build Challenges mode (option B). At this point
+   we have the deviation data; the new mode is a UI on top of
+   existing components.
+6. **Phase 4 (if desired)**: drill-mode stochastic deviations
+   (option C).
+
+### What to do with the Pirc text already shipped
+
+The 5 Pirc tabiyas have inline "Common deviations: ..." prose
+authored in Phase 1a. Three options:
+
+- **Keep as-is** until Phase 1b lifts them — the violet "If they
+  deviate" pill is still useful as a fallback for tabiyas without
+  branched lines yet.
+- **Lift verbatim into Phase 1b lines** — the prose translates
+  directly: each "If White plays X, answer Y" becomes a 4-6 ply
+  sibling line.
+- **Strip after Phase 1b ships** — once branched lines are
+  authoritative, the inline prose is redundant; drop the
+  "Common deviations:" sentences from the tabiya text and let
+  the line picker show the alternatives instead.
+
+Recommended: keep through Phase 1b, then strip in Phase 1c
+when the new presentation is ready. The schema (parser +
+LessonBubble pill) stays — it's still useful for "common
+mistake" callouts and any other section types we add later.
+
+---
+
+# Original plan (for reference)
+
+The sections below are the pre-2026-04-30 plan, kept for
+context. The "Opponent-deviation content" section's option 1
+(text callouts) is what shipped as Phase 1a; options 2 and 3
+are superseded by the engagement-first design above.
+
+
+
 > Why this doc exists: when you said "let's get all of the opening
 > courses built with as many lines as possible and well written
 > tutorials", I went DEPTH-first (rewriting prose on the existing
