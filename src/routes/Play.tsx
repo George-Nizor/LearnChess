@@ -273,7 +273,7 @@ export function Play() {
         </div>
       )}
 
-      <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[auto_minmax(0,1fr)_minmax(240px,280px)]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[auto_minmax(0,1fr)_360px]">
         {showEvalBar ? (
           <div
             aria-label={`Evaluation ${evalLabel}`}

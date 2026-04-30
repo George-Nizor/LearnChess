@@ -23,7 +23,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Chessground } from '@/chess/board';
@@ -45,8 +45,10 @@ import {
   type EndgameLesson,
 } from '@/endgames';
 import { recordEndgameAttempt, getEndgameAttempts, type EndgameAttempt } from '@/persistence/db';
-import { Logo } from '@/components/ui/Logo';
+import { TutorAvatar } from '@/components/ui/TutorAvatar';
 import { LearnIcon, DrillIcon, ExploreIcon } from '@/components/ui/ChessIcons';
+import { Popover } from '@/components/ui/Popover';
+import { MiniBoardPreview } from '@/components/ui/MiniBoardPreview';
 import { playSound, soundForMove } from '@/sound';
 import type { Config } from 'chessground/config';
 
@@ -103,16 +105,10 @@ function renderProse(text: string): ReactNode {
   );
 }
 
-function plainEnglishGoal(p: EndgamePosition): string {
-  const side = p.side === 'w' ? 'White' : 'Black';
-  if (p.goal === 'win') {
-    if (p.category === 'queen' || p.category === 'rook' || p.category === 'minor') {
-      return `Checkmate the lone king · You play ${side}`;
-    }
-    return `Win the position · You play ${side}`;
-  }
-  return `Hold the draw · You play ${side}`;
-}
+// `plainEnglishGoal` was previously displayed in the slim header strip
+// next to the position name. The header now uses the position
+// description as a tooltip instead, so the helper is no longer used.
+// Keeping it commented as documentation for what the goal field maps to.
 
 // ───── Learn-mode viewer ──────────────────────────────────────────────────
 
@@ -126,6 +122,15 @@ interface LearnViewProps {
 function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnViewProps): ReactNode {
   const [nodeIdx, setNodeIdx] = useState<number>(Math.min(initialNodeIdx, lesson.nodes.length - 1));
   const node = lesson.nodes[nodeIdx]!;
+
+  // Tutor speaking-dots indicator — pulses true for ~700 ms whenever
+  // the lesson advances. Mirrors Openings Learn behaviour.
+  const [speaking, setSpeaking] = useState(false);
+  useEffect(() => {
+    setSpeaking(true);
+    const t = window.setTimeout(() => setSpeaking(false), 700);
+    return () => window.clearTimeout(t);
+  }, [lesson.positionId, nodeIdx]);
 
   const fen = node.fen;
 
@@ -193,31 +198,43 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
 
   const finished = nodeIdx === lesson.nodes.length - 1;
 
+  // Layout matches Openings LearnView: board column has only the
+  // board, sidebar holds the tutor avatar, controls strip, and
+  // streaming bubbles.
   return (
-    // Two-column layout that survives the squeeze from the parent
-    // [280px courses sidebar | content] grid: the board cell is
-    // minmax(0,1fr) instead of `auto` so it shrinks rather than pushing
-    // the speech bubble off-screen, and the bubble column tops out at
-    // 360px but accepts as little as 240px on narrower wrappers. Without
-    // this, a 1280-wide viewport ended up with 1024px of inner content
-    // inside ~912px of available space and the bubble bled off the
-    // right edge mid-word.
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)]">
-      <div className="flex min-h-0 min-w-0 flex-col items-center">
-        <div className="cg-board-fit">
-          <Chessground config={cgConfig} />
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="cg-board-fit">
+        <Chessground config={cgConfig} />
+      </div>
+
+      <aside aria-live="polite" className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="flex shrink-0 items-center gap-3">
+          <TutorAvatar pulseKey={`${lesson.positionId}-${nodeIdx}`} size={48} speaking={speaking} />
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Tutor
+            </div>
+            <div className="font-display text-base font-medium leading-tight text-foreground">
+              {lesson.title}
+              <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                · move {nodeIdx} / {lesson.nodes.length - 1}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="mt-2 flex items-center gap-3">
+
+        {/* Move controls — pinned at top of sidebar so they don't shift the board. */}
+        <div className="flex shrink-0 items-center gap-2 rounded-md border border-border bg-elevated/40 p-1.5">
           <button
             type="button"
             onClick={goPrev}
             disabled={nodeIdx === 0}
             aria-label="Previous move"
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-border bg-background/60 px-2 py-1 text-xs hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
           >
             ← Prev
           </button>
-          <div className="font-mono text-xs text-muted-foreground">
+          <div className="flex-1 text-center font-mono text-[11px] text-muted-foreground">
             {nodeIdx + 1} / {lesson.nodes.length}
           </div>
           <button
@@ -225,7 +242,7 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
             onClick={goNext}
             disabled={finished}
             aria-label="Next move"
-            className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next →
           </button>
@@ -233,44 +250,33 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
             <button
               type="button"
               onClick={goRestart}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted"
+              aria-label="Restart lesson"
+              className="rounded border border-border bg-background/60 px-2 py-1 text-xs hover:bg-muted"
             >
-              ↻ Restart
+              ↻
             </button>
           )}
         </div>
-      </div>
 
-      {/* Speech-bubble panel — knight avatar + prose. Animates in on node change.
-          `min-w-0` so the inner motion.div can wrap text instead of pushing
-          past the column. */}
-      <aside aria-live="polite" className="flex min-h-0 min-w-0 gap-3 overflow-y-auto">
-        <div className="flex-shrink-0 pt-1">
-          <Logo size={40} decorative />
-        </div>
-        <div className="flex-1">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={nodeIdx}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2 }}
-              className="relative rounded-2xl rounded-tl-sm border border-border bg-elevated p-4 text-sm leading-relaxed shadow-sm"
-            >
-              <span
-                aria-hidden
-                className="absolute -left-2 top-3 h-3 w-3 rotate-45 border-b border-l border-border bg-elevated"
-              />
-              <p className="text-foreground">{renderProse(node.text)}</p>
-              {finished && (
-                <p className="mt-3 text-xs font-medium text-accent">
-                  ✓ End of lesson — switch to Drill to test what you've learned.
-                </p>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={nodeIdx}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2 }}
+            className="rounded-xl border border-border bg-elevated/80 p-3 text-[14px] leading-6 shadow-sm"
+          >
+            <p className="text-foreground/90">{renderProse(node.text)}</p>
+          </motion.div>
+        </AnimatePresence>
+
+        {finished && (
+          <div className="shrink-0 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-sm">
+            <span className="font-semibold text-accent">✓ End of lesson</span>{' '}
+            — switch to Drill to test what you've learned.
+          </div>
+        )}
       </aside>
     </div>
   );
@@ -586,11 +592,42 @@ export function Endgames(): ReactNode {
     () => ENDGAME_COURSES[0]?.positions[0] ?? ENDGAMES[0]!,
     [],
   );
+
+  // ?course=<courseId> drives the catalogue ↔ detail switch (mirrors the
+  // Openings route convention). When absent, render the catalogue. When
+  // present, snap the active position to that course's first position.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const courseSlug = searchParams.get('course');
+  const slugCourse = useMemo(
+    () => (courseSlug ? ENDGAME_COURSES.find((c) => c.id === courseSlug) : undefined),
+    [courseSlug],
+  );
+
   const [activePositionId, setActivePositionId] = useState<string>(initialPos.id);
   const [mode, setMode] = useState<Mode>('learn');
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(
     () => new Set(ENDGAME_COURSES.length > 0 ? [ENDGAME_COURSES[0]!.id] : []),
   );
+
+  // When the user opens a course from the catalogue, snap the active
+  // position to that course's first one (and expand only that course in
+  // the popover).
+  useEffect(() => {
+    if (!slugCourse) return;
+    const first = slugCourse.positions[0];
+    if (first && first.id !== activePositionId) {
+      const stillInCourse = slugCourse.positions.some((p) => p.id === activePositionId);
+      if (!stillInCourse) setActivePositionId(first.id);
+    }
+    setExpandedCourses(new Set([slugCourse.id]));
+  }, [slugCourse, activePositionId]);
+
+  const openCourse = useCallback((courseId: string) => {
+    setSearchParams({ course: courseId });
+  }, [setSearchParams]);
+  const goBack = useCallback(() => {
+    setSearchParams({});
+  }, [setSearchParams]);
 
   // Mastery counts per position (used in the sidebar star strip and the
   // "Mastered X/Y" chip). Loaded async; refreshed after each drill attempt.
@@ -684,56 +721,328 @@ export function Endgames(): ReactNode {
     return { learned, learnedTotal, mastered, masteredTotal };
   }, [activeCourse, discoveredByPos, masteryByPos]);
 
+  // Catalogue ↔ detail switch. Same convention as Openings: no slug =
+  // browseable catalogue (scrollable); slug = locked-viewport course
+  // detail with the slim control bar.
+  const inCourse = courseSlug !== null && slugCourse !== undefined;
+  if (!inCourse) {
+    return (
+      <EndgameCatalogue
+        onOpen={openCourse}
+        masteryByPos={masteryByPos}
+        discoveredByPos={discoveredByPos}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
-      {/* Single shared grid: course sidebar (left) + content column (right).
-          Putting EVERYTHING in one grid means the header, tabs, and mode body
-          all align to the same left edge — same fix that was applied to
-          Openings.tsx for the alignment issue. The sidebar scrolls
-          internally; the content column fits the viewport via
-          .cg-board-fit on the board placement. */}
-      <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
-        {/* Course sidebar — fully scrollable when course list is long. */}
-        <aside className="min-h-0 overflow-y-auto rounded-md border border-border bg-elevated/40 p-3 text-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Courses</h3>
+      {/* Single slim control strip — same pattern as Openings'
+          CourseControlBar: back arrow + course/position label, position
+          popover, mode tabs, progress chips. */}
+      <EndgameControlBar
+        course={activeCourse}
+        position={activePosition}
+        onBack={goBack}
+        onSelectPosition={setActivePositionId}
+        masteryByPos={masteryByPos}
+        expandedCourses={expandedCourses}
+        onToggleCourse={toggleCourse}
+        mode={mode}
+        onSelectMode={setMode}
+        lessonAvailable={lesson !== undefined}
+        stats={courseStats}
+      />
+
+      {/* Mode body — board + sidebar. Same shape as Openings so the
+          board lands at the same coordinates regardless of route. */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={`${activePositionId}-${mode}`}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="mt-3 min-h-0 flex-1"
+        >
+          {mode === 'learn' && lesson && (
+            <LearnView
+              key={activePositionId}
+              lesson={lesson}
+              initialNodeIdx={Math.min(discoveredByPos.get(activePositionId) ?? 0, lesson.nodes.length - 1)}
+              playerSide={activePosition.side === 'w' ? 'white' : 'black'}
+              onProgress={(idx) => void handleLearnProgress(idx)}
+            />
+          )}
+          {mode === 'drill' && (
+            <DrillView
+              key={activePositionId}
+              position={activePosition}
+              onMastery={() => void refreshMastery()}
+            />
+          )}
+          {mode === 'explore' && (
+            <ExploreView position={activePosition} />
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ───── Endgame catalogue (course cards) ──────────────────────────────────
+// Visual structure mirrors src/routes/Openings.tsx → Catalogue exactly:
+//   - h1 + intro paragraph header
+//   - sm:grid-cols-2 grid of cards
+//   - each card: MiniBoardPreview thumbnail (140 px) + flex column with
+//     title row, description, progress bar, "Open" button
+// The MiniBoardPreview uses each course's first position as the
+// preview FEN so each card has a distinguishing thumbnail.
+
+interface EndgameCatalogueProps {
+  onOpen: (courseId: string) => void;
+  masteryByPos: Map<string, number>;
+  discoveredByPos: Map<string, number>;
+}
+
+function EndgameCatalogue({ onOpen, masteryByPos, discoveredByPos }: EndgameCatalogueProps): ReactNode {
+  return (
+    <div className="mx-auto h-full max-w-7xl overflow-y-auto px-6 py-6">
+      <div className="flex flex-col gap-5">
+        <header className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="font-display text-3xl font-semibold leading-tight">Endgames</h1>
           </div>
-          {ENDGAME_COURSES.map((course) => {
-            const expanded = expandedCourses.has(course.id);
-            const courseHasActive = course.positions.some((p) => p.id === activePositionId);
+          <p className="text-sm text-muted-foreground">
+            Foundational positions that win every game. Pick a course to
+            start with the basic mate, walk through the lesson, then
+            drill against the engine until the technique is automatic.
+          </p>
+        </header>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {ENDGAME_COURSES.map((course) => (
+            <EndgameCourseCard
+              key={course.id}
+              course={course}
+              masteryByPos={masteryByPos}
+              discoveredByPos={discoveredByPos}
+              onOpen={() => onOpen(course.id)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface EndgameCourseCardProps {
+  course: EndgameCourse;
+  masteryByPos: Map<string, number>;
+  discoveredByPos: Map<string, number>;
+  onOpen: () => void;
+}
+
+function EndgameCourseCard({ course, masteryByPos, discoveredByPos, onOpen }: EndgameCourseCardProps): ReactNode {
+  const totalPositions = course.positions.length;
+  const totalNodes = course.positions.reduce((acc, p) => {
+    const l = endgameLessonFor(p.id);
+    return acc + (l?.nodes.length ?? 0);
+  }, 0);
+  const learned = course.positions.reduce((acc, p) => acc + (discoveredByPos.get(p.id) ?? 0), 0);
+  const mastered = course.positions.reduce((acc, p) => acc + (masteryByPos.get(p.id) ?? 0), 0);
+  const masteredTotal = totalPositions * 5;
+  const pct = totalNodes === 0 ? 0 : Math.round((learned / totalNodes) * 100);
+
+  // Use the course's first position FEN as the card's preview thumbnail,
+  // so every card has a visually distinctive board image.
+  const firstPosition = course.positions[0];
+  const previewFen = firstPosition?.fen ?? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const orientation: 'white' | 'black' = firstPosition?.side === 'b' ? 'black' : 'white';
+
+  return (
+    <article
+      aria-labelledby={`endgame-course-${course.id}-title`}
+      className="group flex flex-col gap-3 rounded-lg border border-border bg-elevated p-4 shadow-sm transition-all hover:scale-[1.01] hover:shadow-md sm:flex-row sm:items-stretch sm:gap-4"
+    >
+      <div className="flex-shrink-0">
+        <MiniBoardPreview size={140} fen={previewFen} orientation={orientation} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex items-baseline gap-2">
+          <h3
+            id={`endgame-course-${course.id}-title`}
+            className="font-display text-base font-semibold leading-tight"
+          >
+            {course.name}
+          </h3>
+          <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {totalPositions} positions
+          </span>
+        </div>
+        <p className="line-clamp-2 text-xs text-muted-foreground">{course.description}</p>
+
+        <div className="mt-auto">
+          {totalNodes > 0 && (
+            <>
+              <div className="mb-1 flex items-baseline justify-between text-[11px]">
+                <span className="font-medium uppercase tracking-wide text-muted-foreground">Progress</span>
+                <span className="font-mono text-foreground">{learned} / {totalNodes} learned</span>
+              </div>
+              <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-accent transition-all"
+                  style={{ width: `${pct}%` }}
+                  role="progressbar"
+                  aria-valuenow={pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${learned} of ${totalNodes} lesson nodes learned`}
+                />
+              </div>
+              <div className="mb-2 text-[11px] text-muted-foreground">
+                <span className="font-mono font-semibold text-foreground">{mastered}</span>
+                <span className="opacity-60"> / {masteredTotal}</span> mastery stars
+              </div>
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={onOpen}
+            className="w-full rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          >
+            Open
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// ───── Endgame control bar (slim header) ─────────────────────────────────
+
+interface EndgameControlBarProps {
+  course: EndgameCourse | undefined;
+  position: EndgamePosition;
+  onBack: () => void;
+  onSelectPosition: (id: string) => void;
+  masteryByPos: Map<string, number>;
+  expandedCourses: Set<string>;
+  onToggleCourse: (id: string) => void;
+  mode: Mode;
+  onSelectMode: (m: Mode) => void;
+  lessonAvailable: boolean;
+  stats: { learned: number; learnedTotal: number; mastered: number; masteredTotal: number };
+}
+
+function EndgameControlBar({
+  course,
+  position,
+  onBack,
+  onSelectPosition,
+  masteryByPos,
+  expandedCourses,
+  onToggleCourse,
+  mode,
+  onSelectMode,
+  lessonAvailable,
+  stats,
+}: EndgameControlBarProps): ReactNode {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border/60 bg-elevated/40 px-3 py-1.5 text-sm backdrop-blur-sm">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Back to courses"
+        className="rounded text-base text-muted-foreground transition-colors hover:text-foreground"
+      >
+        ←
+      </button>
+
+      {/* Title block — same shape as Openings:
+            <Course name>  <Side badge>
+          The position name + tagline aren't squeezed into the header
+          (would wrap on smaller widths); they live as the title-tooltip
+          on the position popover trigger and on the lesson sidebar. */}
+      <div className="flex items-baseline gap-2">
+        <h2
+          className="font-display text-base font-semibold leading-tight text-foreground"
+          title={position.description}
+        >
+          {course?.name ?? 'Endgames'}
+        </h2>
+        <span className="rounded bg-muted/70 px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-muted-foreground">
+          {position.side === 'w' ? 'White' : 'Black'}
+        </span>
+      </div>
+
+      {/* Position popover trigger — shows the active position's name. */}
+      <div className="relative">
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setPickerOpen((o) => !o)}
+          aria-haspopup="dialog"
+          aria-expanded={pickerOpen}
+          aria-controls="positions-popover"
+          title={position.description}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1 text-[12.5px] font-medium hover:bg-muted"
+        >
+          <span className="max-w-[260px] truncate font-display">{position.name}</span>
+          <span aria-hidden className="text-[10px] text-muted-foreground">▾</span>
+        </button>
+        <Popover
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          triggerRef={triggerRef}
+          panelId="positions-popover"
+          aria-label="Endgame courses and positions"
+          className="left-0 mt-1 max-h-[60vh] w-[320px] overflow-y-auto p-2"
+        >
+          <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Courses
+          </div>
+          {ENDGAME_COURSES.map((c) => {
+            const expanded = expandedCourses.has(c.id);
+            const hasActive = c.positions.some((p) => p.id === position.id);
             return (
-              <section key={course.id} className="mb-2">
+              <div key={c.id} className="mb-1">
                 <button
                   type="button"
-                  onClick={() => toggleCourse(course.id)}
+                  onClick={() => onToggleCourse(c.id)}
                   aria-expanded={expanded}
-                  className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide transition-colors ${
-                    courseHasActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  className={`flex w-full items-center justify-between rounded px-2 py-1 text-left text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+                    hasActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <span>{course.name}</span>
+                  <span>{c.name}</span>
                   <span aria-hidden className="font-mono text-[10px]">{expanded ? '−' : '+'}</span>
                 </button>
                 {expanded && (
-                  <ul className="mt-1 space-y-0.5">
-                    {course.positions.map((p) => {
+                  <ul className="mt-0.5 space-y-0.5">
+                    {c.positions.map((p) => {
                       const stars = masteryByPos.get(p.id) ?? 0;
-                      const isActive = p.id === activePositionId;
+                      const isActive = p.id === position.id;
                       return (
                         <li key={p.id}>
                           <button
                             type="button"
-                            onClick={() => { setActivePositionId(p.id); }}
-                            className={`flex w-full flex-col gap-0.5 rounded px-2 py-1.5 text-left text-xs transition-all ${
+                            onClick={() => {
+                              onSelectPosition(p.id);
+                              setPickerOpen(false);
+                            }}
+                            className={`flex w-full flex-col gap-0.5 rounded px-2 py-1.5 text-left text-[12px] transition-all ${
                               isActive
-                                ? 'bg-accent text-accent-foreground'
+                                ? 'bg-accent/20 text-foreground ring-1 ring-accent/40'
                                 : 'hover:bg-muted'
                             }`}
                           >
                             <span className="line-clamp-2 leading-snug">{p.name}</span>
-                            <span className={`flex items-center justify-between text-[10px] ${
-                              isActive ? 'text-accent-foreground/80' : 'text-muted-foreground'
-                            }`}>
+                            <span className="flex items-center justify-between text-[10px] text-muted-foreground">
                               <span>{p.side === 'w' ? 'White' : 'Black'} · {p.goal}</span>
                               <StarStrip count={stars} />
                             </span>
@@ -743,106 +1052,55 @@ export function Endgames(): ReactNode {
                     })}
                   </ul>
                 )}
-              </section>
+              </div>
             );
           })}
-        </aside>
+        </Popover>
+      </div>
 
-        {/* Right column — header, tabs, mode body all flow vertically and align
-            to the same left edge as each other. `min-w-0` prevents long
-            content (move lists, prose) from blowing the grid out. */}
-        <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden">
-          <div className="shrink-0 rounded-md border border-border bg-elevated px-3 py-2">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                {activeCourse?.name ?? activePosition.category}
-              </span>
-              <h2 className="font-display text-base font-semibold leading-tight">{activePosition.name}</h2>
-              <span className="text-[11px] text-muted-foreground">— {plainEnglishGoal(activePosition)}</span>
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0 text-[11px] text-muted-foreground">
-              <span title="Lesson nodes seen across this course in Learn mode">
-                <span className="font-semibold text-foreground">{courseStats.learned}</span>
-                <span className="opacity-60"> / {courseStats.learnedTotal}</span> learned
-              </span>
-              <span title="Up to 5 stars per position — earned by efficient drill wins">
-                <span className="font-semibold text-foreground">{courseStats.mastered}</span>
-                <span className="opacity-60"> / {courseStats.masteredTotal}</span> mastered
-              </span>
-              <span className="line-clamp-1 opacity-60" title={activePosition.description}>{activePosition.description}</span>
-            </div>
-          </div>
-
-          {/* Mode tab strip — uses framer-motion layoutId for the sliding pill */}
-          <div className="flex shrink-0 items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
-            {(['learn', 'drill', 'explore'] as Mode[]).map((m) => {
-              const isActive = mode === m;
-              const disabled = m === 'learn' && !lesson;
-              const label = m === 'learn' ? 'Learn' : m === 'drill' ? 'Drill' : 'Explore';
-              const Icon = m === 'learn' ? LearnIcon : m === 'drill' ? DrillIcon : ExploreIcon;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => !disabled && setMode(m)}
-                  disabled={disabled}
-                  className={`relative rounded px-4 py-1.5 text-sm font-medium transition-colors ${
-                    isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                  } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="endgame-tab-pill"
-                      className="absolute inset-0 rounded bg-background shadow-sm"
-                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative inline-flex items-center gap-1.5">
-                    <Icon size={15} />
-                    {label}
-                  </span>
-                </button>
-              );
-            })}
-            {!lesson && (
-              <span className="ml-2 text-[11px] text-muted-foreground">
-                No prose lesson for this position yet — Learn unlocks once one is authored.
-              </span>
-            )}
-          </div>
-
-          {/* Mode body — INSIDE the right column so it aligns with header + tabs */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${activePositionId}-${mode}`}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              className="min-h-0 flex-1"
+      {/* Mode tabs */}
+      <div className="flex items-center gap-0.5 rounded-md border border-border bg-background/40 p-0.5">
+        {(['learn', 'drill', 'explore'] as Mode[]).map((m) => {
+          const isActive = mode === m;
+          const disabled = m === 'learn' && !lessonAvailable;
+          const label = m === 'learn' ? 'Learn' : m === 'drill' ? 'Drill' : 'Explore';
+          const Icon = m === 'learn' ? LearnIcon : m === 'drill' ? DrillIcon : ExploreIcon;
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => !disabled && onSelectMode(m)}
+              disabled={disabled}
+              className={`relative rounded px-2 py-0.5 text-[12px] font-medium transition-colors ${
+                isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+              } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
+              title={disabled ? 'No prose lesson for this position yet' : label}
             >
-              {mode === 'learn' && lesson && (
-                <LearnView
-                  key={activePositionId}
-                  lesson={lesson}
-                  initialNodeIdx={Math.min(discoveredByPos.get(activePositionId) ?? 0, lesson.nodes.length - 1)}
-                  playerSide={activePosition.side === 'w' ? 'white' : 'black'}
-                  onProgress={(idx) => void handleLearnProgress(idx)}
+              {isActive && (
+                <motion.span
+                  layoutId="endgame-tab-pill"
+                  className="absolute inset-0 rounded bg-elevated shadow-sm"
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}
-              {mode === 'drill' && (
-                <DrillView
-                  key={activePositionId}
-                  position={activePosition}
-                  onMastery={() => void refreshMastery()}
-                />
-              )}
-              {mode === 'explore' && (
-                <ExploreView position={activePosition} />
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+              <span className="relative inline-flex items-center gap-1.5">
+                <Icon size={13} />
+                <span className="hidden sm:inline">{label}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
+        <span title="Lesson nodes seen across this course in Learn mode">
+          <span className="font-mono font-semibold text-foreground">{stats.learned}</span>
+          <span className="opacity-60">/{stats.learnedTotal}</span> learned
+        </span>
+        <span title="Up to 5 stars per position — earned by efficient drill wins">
+          <span className="font-mono font-semibold text-foreground">{stats.mastered}</span>
+          <span className="opacity-60">/{stats.masteredTotal}</span> mastered
+        </span>
       </div>
     </div>
   );

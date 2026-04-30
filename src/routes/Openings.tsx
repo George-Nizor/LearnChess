@@ -257,44 +257,14 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
   //     short bubbles fading in one after another. The whole sidebar
   //     scrolls if a tabiya has many sections; the page itself never
   //     scrolls.
+  // Layout principle: the BOARD COLUMN holds only the board. All
+  // controls (Prev / Next / Restart) live in the sidebar. This keeps
+  // the board's pixel position fixed across modes — no chrome above
+  // or below it shifts the board on tab switch.
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
-        <div className="cg-board-fit">
-          <Chessground config={cgConfig} />
-        </div>
-        <div className="mt-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={goPrev}
-            disabled={nodeIdx === 0}
-            aria-label="Previous move"
-            className="rounded-md border border-border bg-background/60 px-3 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            ← Prev
-          </button>
-          <div className="font-mono text-xs text-muted-foreground">
-            {nodeIdx + 1} / {line.nodes.length}
-          </div>
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={finished}
-            aria-label="Next move"
-            className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Next →
-          </button>
-          {finished && (
-            <button
-              type="button"
-              onClick={goRestart}
-              className="rounded-md border border-border bg-background/60 px-3 py-1 text-sm hover:bg-muted"
-            >
-              ↻ Restart
-            </button>
-          )}
-        </div>
+      <div className="cg-board-fit">
+        <Chessground config={cgConfig} />
       </div>
 
       <aside aria-live="polite" className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pr-1">
@@ -311,6 +281,42 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Move controls — pinned at the top of the sidebar so they
+            don't shift the board. Prev / counter / Next / Restart. */}
+        <div className="flex shrink-0 items-center gap-2 rounded-md border border-border bg-elevated/40 p-1.5">
+          <button
+            type="button"
+            onClick={goPrev}
+            disabled={nodeIdx === 0}
+            aria-label="Previous move"
+            className="rounded border border-border bg-background/60 px-2 py-1 text-xs hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ← Prev
+          </button>
+          <div className="flex-1 text-center font-mono text-[11px] text-muted-foreground">
+            {nodeIdx + 1} / {line.nodes.length}
+          </div>
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={finished}
+            aria-label="Next move"
+            className="rounded bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next →
+          </button>
+          {finished && (
+            <button
+              type="button"
+              onClick={goRestart}
+              aria-label="Restart line"
+              className="rounded border border-border bg-background/60 px-2 py-1 text-xs hover:bg-muted"
+            >
+              ↻
+            </button>
+          )}
         </div>
 
         <LessonBubbleStream text={node.text} nodeKey={`${line.id}-${nodeIdx}`} />

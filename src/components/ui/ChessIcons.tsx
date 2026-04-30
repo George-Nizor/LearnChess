@@ -294,6 +294,64 @@ export function FlagIcon(props: ChessIconProps) {
   );
 }
 
+// ── Navigation icons (rail) ─────────────────────────────────────────────
+
+/** Book — Openings (study). */
+export function BookIcon(props: ChessIconProps) {
+  return (
+    <SvgShell {...props}>
+      <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />
+      <path d="M4 5v15" />
+      <path d="M9 7h7M9 10h7" />
+    </SvgShell>
+  );
+}
+
+/** Target — Tactics (aim / puzzle). */
+export function TargetIcon(props: ChessIconProps) {
+  return (
+    <SvgShell {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+    </SvgShell>
+  );
+}
+
+/** Search — Analysis (magnifying glass). */
+export function SearchIcon(props: ChessIconProps) {
+  return (
+    <SvgShell {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-4.3-4.3" strokeWidth={2} />
+    </SvgShell>
+  );
+}
+
+/** Gamepad — Play (vs engine). */
+export function GamepadIcon(props: ChessIconProps) {
+  return (
+    <SvgShell {...props}>
+      <path d="M6 11h4M8 9v4" />
+      <circle cx="15" cy="11" r="0.8" fill="currentColor" stroke="none" />
+      <circle cx="17" cy="13" r="0.8" fill="currentColor" stroke="none" />
+      <path d="M5 17l2-7c.4-1.4 1.6-2 3-2h4c1.4 0 2.6.6 3 2l2 7c.3 1.2-.7 2.2-1.9 2H7c-1.2 0-2.2-1-1.9-2z" />
+    </SvgShell>
+  );
+}
+
+/** Bar chart — Dashboard (stats). */
+export function BarChartIcon(props: ChessIconProps) {
+  return (
+    <SvgShell {...props}>
+      <path d="M4 21V10" strokeWidth={2} />
+      <path d="M10 21V4" strokeWidth={2} />
+      <path d="M16 21v-8" strokeWidth={2} />
+      <path d="M3 21h19" />
+    </SvgShell>
+  );
+}
+
 /** Settings — gear. Used in the Layout nav top-right. */
 export function SettingsIcon(props: ChessIconProps) {
   return (

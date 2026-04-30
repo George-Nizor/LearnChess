@@ -86,38 +86,39 @@ interface ChoiceGroupProps<T extends string> {
 }
 
 function ChoiceGroup<T extends string>({
-  legend, description, value, options, onChange, name, renderTrailing,
+  legend, description, value, options, onChange, name: _name, renderTrailing,
 }: ChoiceGroupProps<T>): ReactNode {
+  // Implementation note: this used to be a hidden radio input + label
+  // pair. Clicking a label shifted focus to the `sr-only` radio input,
+  // which the browser positions at (0,0) of its containing scroll
+  // container — so the scroll viewport jumped to the top on every
+  // pack change (visible regression on /settings, reported by the
+  // user). Switching to `<button role="radio">` keeps full radio-group
+  // semantics for assistive tech without the focus-scroll side effect.
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium text-foreground">{legend}</legend>
       {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      <div className="flex flex-wrap items-center gap-2 pt-1">
+      <div role="radiogroup" aria-label={legend} className="flex flex-wrap items-center gap-2 pt-1">
         {options.map((opt) => {
           const isActive = opt.id === value;
-          const inputId = `${name}-${opt.id}`;
           return (
             <span key={opt.id} className="inline-flex items-center gap-1.5">
-              <label
-                htmlFor={inputId}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                aria-label={`${opt.label}${opt.description ? ` — ${opt.description}` : ''}`}
                 title={opt.description}
-                className={`group cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                onClick={() => onChange(opt.id)}
+                className={`group cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   isActive
                     ? 'border-accent bg-accent text-accent-foreground shadow-sm'
                     : 'border-border bg-background text-foreground hover:bg-muted'
                 }`}
               >
-                <input
-                  id={inputId}
-                  type="radio"
-                  name={name}
-                  value={opt.id}
-                  checked={isActive}
-                  onChange={() => onChange(opt.id)}
-                  className="sr-only"
-                />
-                <span>{opt.label}</span>
-              </label>
+                {opt.label}
+              </button>
               {renderTrailing?.(opt.id)}
             </span>
           );
@@ -271,13 +272,14 @@ export function Settings(): ReactNode {
   }, []);
 
   return (
-    <PageShell width="narrow">
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18 }}
-        className="space-y-6"
-      >
+    <div className="h-full overflow-y-auto">
+      <PageShell width="narrow">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.18 }}
+          className="space-y-6"
+        >
         <header>
           <h1 className="font-display text-3xl font-semibold">Settings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -404,7 +406,8 @@ export function Settings(): ReactNode {
             </p>
           )}
         </section>
-      </motion.div>
-    </PageShell>
+        </motion.div>
+      </PageShell>
+    </div>
   );
 }

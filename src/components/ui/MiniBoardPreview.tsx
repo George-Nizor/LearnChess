@@ -29,6 +29,14 @@ interface MiniBoardPreviewProps {
   size?: number;
   /** Optional className to forward to the outer wrapper. */
   className?: string;
+  /**
+   * Optional FEN string. When provided, the preview renders THIS position
+   * instead of the default Italian-Game tabiya. Only the piece-placement
+   * field is read; the side-to-move and rights are ignored.
+   */
+  fen?: string;
+  /** Render with black on the bottom (default: white). */
+  orientation?: 'white' | 'black';
 }
 
 interface ThemePalette {
@@ -67,13 +75,58 @@ function pieceUrl(set: PieceSetId, code: PieceCode): string {
   return `/piece-sets/${set}/${code}.svg`;
 }
 
+const FEN_TO_PIECE: Record<string, PieceCode> = {
+  K: 'wK', Q: 'wQ', R: 'wR', B: 'wB', N: 'wN', P: 'wP',
+  k: 'bK', q: 'bQ', r: 'bR', b: 'bB', n: 'bN', p: 'bP',
+};
+
+/**
+ * Parse the placement field of a FEN into an 8×8 grid (rank 8 first
+ * → rank 1 last, file a→h). Empty squares are ''. Robust to short FENs
+ * (e.g. `8/8/...`) — anything malformed silently degrades to empty.
+ */
+function fenToGrid(fen: string): ReadonlyArray<ReadonlyArray<PieceCode | ''>> {
+  const placement = fen.split(' ')[0] ?? '';
+  const ranks = placement.split('/');
+  const grid: (PieceCode | '')[][] = [];
+  for (let r = 0; r < 8; r++) {
+    const rankStr = ranks[r] ?? '';
+    const row: (PieceCode | '')[] = [];
+    for (const ch of rankStr) {
+      if (/[1-8]/.test(ch)) {
+        const empty = parseInt(ch, 10);
+        for (let i = 0; i < empty; i++) row.push('');
+      } else {
+        const piece = FEN_TO_PIECE[ch];
+        if (piece) row.push(piece);
+      }
+      if (row.length >= 8) break;
+    }
+    while (row.length < 8) row.push('');
+    grid.push(row);
+  }
+  while (grid.length < 8) grid.push(['', '', '', '', '', '', '', '']);
+  return grid;
+}
+
 export function MiniBoardPreview({
   boardTheme = 'brown',
   pieceSet = 'cburnett',
   size = 160,
   className,
+  fen,
+  orientation = 'white',
 }: MiniBoardPreviewProps): ReactNode {
   const { light, dark } = PALETTES[boardTheme];
+
+  // If a FEN is supplied, parse it; otherwise use the default Italian
+  // Game position (fixed below as `POSITION`). Black orientation flips
+  // the rank order AND the file order so the preview reads from
+  // black's perspective.
+  const baseGrid = fen ? fenToGrid(fen) : POSITION;
+  const grid = orientation === 'black'
+    ? baseGrid.map((row) => [...row].reverse()).slice().reverse()
+    : baseGrid;
 
   return (
     <div
@@ -88,13 +141,19 @@ export function MiniBoardPreview({
           gridTemplateRows: 'repeat(8, 1fr)',
         }}
       >
-        {POSITION.flatMap((row, rIdx) =>
+        {grid.flatMap((row, rIdx) =>
           row.map((piece, fIdx) => {
             // Standard chess coloring: a1 (rank 1, file a) is dark.
-            // rIdx 0 = rank 8, rIdx 7 = rank 1 ⇒ rank = 8 - rIdx.
-            // file = fIdx + 1 (a=1). Square is light when (rank + file) is even.
-            const rank = 8 - rIdx;
-            const file = fIdx + 1;
+            // For white-on-bottom (orientation='white'):
+            //   rIdx 0 = rank 8, rIdx 7 = rank 1 ⇒ rank = 8 - rIdx
+            //   file = fIdx + 1 (a=1)
+            // For black-on-bottom (orientation='black') the grid was
+            // already flipped both axes when constructed, so:
+            //   rIdx 0 = rank 1, rIdx 7 = rank 8 ⇒ rank = rIdx + 1
+            //   file = 8 - fIdx (h=1 from black's view but we still
+            //   compute square colour from absolute coords)
+            const rank = orientation === 'black' ? rIdx + 1 : 8 - rIdx;
+            const file = orientation === 'black' ? 8 - fIdx : fIdx + 1;
             const isLight = (rank + file) % 2 === 0;
             return (
               <div

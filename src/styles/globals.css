@@ -44,11 +44,13 @@
   --color-eval-white: oklch(95% 0 0);
   --color-eval-black: oklch(18% 0 0);
 
-  /* Typography. Display is Fraunces (variable serif, opsz + wght axes) for
-     character on titles and brand. Body is Inter for unflashy readability.
-     Mono is JetBrains Mono for FEN / PGN / move counters. All loaded via
-     Google Fonts in index.html; system fallbacks render immediately. */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Typography. Fraunces (variable serif) is the SOLE typeface for
+     display + body — chess-study character extended across the whole
+     page. Headers use heavier weight + tighter letter-spacing for
+     hierarchy, body sits at 400 weight. Mono is JetBrains Mono for
+     FEN / PGN / move counters. All loaded via Google Fonts in
+     index.html; system fallbacks render immediately. */
+  --font-sans: "Fraunces", "Iowan Old Style", "Apple Garamond", Georgia, "Times New Roman", serif;
   --font-display: "Fraunces", "Iowan Old Style", "Apple Garamond", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }

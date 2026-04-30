@@ -8,28 +8,35 @@ import { SetupBanner } from '@/components/ui/SetupBanner';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import {
   SettingsIcon,
-  OpenGameIcon,
-  KingIcon,
-  MateIcon,
-  ExploreIcon,
-  KnightIcon,
-  StarIcon,
+  BookIcon,
+  FlagIcon,
+  TargetIcon,
+  SearchIcon,
+  GamepadIcon,
+  BarChartIcon,
   type ChessIconProps,
 } from '@/components/ui/ChessIcons';
 import { PageMetaContext, type PageMetaContextValue } from './page-meta';
 
 // Nav order reflects priority: learning chess (openings → endgames → tactics)
 // comes before analysis tools and free play. Dashboard sits last because it's
-// a passive view, not a primary action. Each item carries an icon used by the
-// vertical rail; the label is shown as a tooltip on hover.
+// a passive view, not a primary action. Each rail item shows an icon by
+// default and slides out a label pill on hover (Discord-style). Icons were
+// chosen for instant readability:
+//   - Openings → BOOK (study)
+//   - Endgames → FLAG (finish line)
+//   - Tactics → TARGET (puzzle / aim)
+//   - Analysis → SEARCH (magnifying glass)
+//   - Play → GAMEPAD (vs engine)
+//   - Dashboard → BAR CHART (stats)
 type NavIcon = (props: ChessIconProps) => React.ReactNode;
 const NAV: ReadonlyArray<{ to: string; label: string; Icon: NavIcon }> = [
-  { to: '/openings', label: 'Openings', Icon: OpenGameIcon },
-  { to: '/endgames', label: 'Endgames', Icon: KingIcon },
-  { to: '/tactics', label: 'Tactics', Icon: MateIcon },
-  { to: '/analysis', label: 'Analysis', Icon: ExploreIcon },
-  { to: '/play', label: 'Play', Icon: KnightIcon },
-  { to: '/dashboard', label: 'Dashboard', Icon: StarIcon },
+  { to: '/openings', label: 'Openings', Icon: BookIcon },
+  { to: '/endgames', label: 'Endgames', Icon: FlagIcon },
+  { to: '/tactics', label: 'Tactics', Icon: TargetIcon },
+  { to: '/analysis', label: 'Analysis', Icon: SearchIcon },
+  { to: '/play', label: 'Play', Icon: GamepadIcon },
+  { to: '/dashboard', label: 'Dashboard', Icon: BarChartIcon },
 ];
 
 export function Layout() {
@@ -54,7 +61,14 @@ export function Layout() {
             label is still announced by screen readers). */}
         <aside
           aria-label="Primary navigation"
-          className="flex w-14 shrink-0 flex-col items-center gap-2 border-r border-border bg-muted/30 px-1.5 py-3 backdrop-blur"
+          // `relative z-50` so the hover-label pills (which are children
+          // of nav buttons inside this aside) win the stacking-context
+          // race against route content like the Stockfish eval bar
+          // (which uses its own positioned wrappers with z-10 / z-20).
+          // backdrop-blur was creating an isolated stacking context that
+          // capped child z-index; explicit `relative z-50` lifts the
+          // whole rail above any same-document positioned content.
+          className="relative z-50 flex w-14 shrink-0 flex-col items-center gap-2 border-r border-border bg-muted/30 px-1.5 py-3 backdrop-blur"
         >
           {/* Brand mark — clicks to home/index. */}
           <NavLink
@@ -70,17 +84,18 @@ export function Layout() {
           {/* Divider */}
           <span aria-hidden className="my-1 h-px w-6 bg-border" />
 
-          {/* Nav items. The active state shows the amber accent, soft
-              glow ring, and slight scale-up for affordance. */}
+          {/* Nav items. The active state shows the amber accent. On hover
+              a label pill slides out to the right of the rail (Discord-
+              style) so the user can see the route name. The pill uses
+              `pointer-events-none` so it can't intercept clicks. */}
           <nav aria-label="Primary" className="flex flex-1 flex-col items-center gap-1">
             {NAV.map(({ to, label, Icon }) => (
               <NavLink
                 key={to}
                 to={to}
-                title={label}
                 aria-label={label}
                 className={({ isActive }) =>
-                  `relative flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                  `group relative flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                     isActive
                       ? 'bg-accent text-accent-foreground shadow-sm'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -88,6 +103,13 @@ export function Layout() {
                 }
               >
                 <Icon size={18} />
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute left-full z-50 ml-2 origin-left scale-95 rounded-md border border-border bg-elevated px-2.5 py-1 text-xs font-medium text-foreground opacity-0 shadow-lg transition-all duration-150 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:scale-100 group-focus-visible:opacity-100"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {label}
+                </span>
               </NavLink>
             ))}
           </nav>

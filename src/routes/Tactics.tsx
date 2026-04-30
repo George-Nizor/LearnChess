@@ -481,54 +481,74 @@ export function Tactics() {
 
   return (
     <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
-      <header className="mb-2 flex shrink-0 items-baseline justify-between">
-        <h1 className="text-xl font-semibold">Tactics</h1>
-        <div className="text-sm text-muted-foreground">
-          rating <span className="font-mono font-medium text-foreground">{userRating.rating}</span>
-          <span className="ml-1 text-xs">±{userRating.rd}</span>
-          <span className="ml-2 rounded bg-muted px-2 py-0.5 text-xs uppercase">{ratingBand(userRating.rating)}</span>
+      {/* Same grid template as Play / Analysis — empty placeholder
+          slot (the eval-bar slot on Play/Analysis), board column, and
+          the 360 px sidebar. The board lands at identical pixel coords
+          across the three routes. */}
+      <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[24px_minmax(0,1fr)_360px]">
+        {/* Eval-bar placeholder — keeps board's x position identical to
+            Play / Analysis. Tactics has no eval bar so the slot is empty. */}
+        <div className="hidden md:block" aria-hidden />
+
+        {/* Just the board — no chrome above or below. */}
+        <div className="cg-board-fit min-h-0 min-w-0">
+          <Chessground config={cgConfig} />
         </div>
-      </header>
 
-      <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[200px_minmax(0,1fr)_300px]">
-        {/* ────── FILTER SIDEBAR (compact, ≈200px) ─────────────────────── */}
-        <aside className="min-h-0 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 text-sm">
-          <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Filters</h3>
-
-          {/* Theme picker — collapsed-by-default popover trigger.
-              The button's visible text IS its accessible name; we add
-              aria-label to make the dynamic value ("Fork +2 more") less
-              cryptic for screen-reader users by prefixing the field name. */}
-          <div className="relative">
+        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto rounded-md border border-border bg-muted/40 p-3 text-sm">
+          {/* Header section: rating + filters trigger + selected chips +
+              skip button. All previously in a top strip; consolidated
+              here so the board column has zero chrome. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-border pb-3">
+            <span className="text-[11px] text-muted-foreground">
+              rating <span className="font-mono font-semibold text-foreground">{userRating.rating}</span>
+              <span className="ml-1 opacity-60">±{userRating.rd}</span>
+            </span>
+            <span className="rounded bg-muted/70 px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-muted-foreground">
+              {ratingBand(userRating.rating)}
+            </span>
             <button
-              ref={themeTriggerRef}
               type="button"
-              onClick={() => setThemePickerOpen((o) => !o)}
-              aria-haspopup="dialog"
-              aria-expanded={themePickerOpen}
-              aria-controls="theme-picker-panel"
-              aria-label={`Themes filter: ${triggerLabel}`}
-              className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              onClick={loadNext}
+              title="Skip current puzzle and load a new one"
+              aria-label="Skip puzzle"
+              className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              <span className="truncate" title={triggerLabel}>{triggerLabel}</span>
               <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                focusable="false"
-                className={`shrink-0 transition-transform ${themePickerOpen ? 'rotate-180' : ''}`}
+                width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
               >
-                <polyline points="6 9 12 15 18 9" />
+                <polygon points="5 4 15 12 5 20 5 4" />
+                <line x1="19" y1="5" x2="19" y2="19" />
               </svg>
+              <span>Skip</span>
             </button>
+          </div>
 
-            <Popover
+          {/* Filters trigger + active chips */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="relative">
+          <button
+            ref={themeTriggerRef}
+            type="button"
+            onClick={() => setThemePickerOpen((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={themePickerOpen}
+            aria-controls="theme-picker-panel"
+            aria-label={`Filters: ${triggerLabel}`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1 text-[12.5px] font-medium hover:bg-muted"
+          >
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+            >
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            <span className="max-w-[180px] truncate">{triggerLabel}</span>
+            <span aria-hidden className="text-[10px] text-muted-foreground">▾</span>
+          </button>
+
+          <Popover
               open={themePickerOpen}
               onClose={() => setThemePickerOpen(false)}
               triggerRef={themeTriggerRef}
@@ -745,190 +765,81 @@ export function Tactics() {
                   )}
                 </div>
               )}
+
+              {/* Rating range — moved into the popover so the header
+                  stays compact. */}
+              <div className="mt-3 border-t border-border pt-2">
+                <div className="mb-1 flex items-baseline justify-between px-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Rating range</span>
+                  {!isRatingDefault && (
+                    <button
+                      type="button"
+                      onClick={resetRating}
+                      className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 px-1">
+                  <label className="sr-only" htmlFor="rating-min">Minimum rating</label>
+                  <input
+                    id="rating-min"
+                    type="number"
+                    className="w-full rounded border border-border bg-background px-1 py-0.5 text-center font-mono text-xs"
+                    value={ratingMin}
+                    onChange={(e) => { setRatingMin(Number(e.target.value)); queueRef.current = []; }}
+                    min={400}
+                    max={3000}
+                    step={50}
+                  />
+                  <span className="text-xs text-muted-foreground">–</span>
+                  <label className="sr-only" htmlFor="rating-max">Maximum rating</label>
+                  <input
+                    id="rating-max"
+                    type="number"
+                    className="w-full rounded border border-border bg-background px-1 py-0.5 text-center font-mono text-xs"
+                    value={ratingMax}
+                    onChange={(e) => { setRatingMax(Number(e.target.value)); queueRef.current = []; }}
+                    min={400}
+                    max={3000}
+                    step={50}
+                  />
+                </div>
+              </div>
             </Popover>
           </div>
 
-          {/* Selected-openings chip strip — placed above themes so the
-              high-level "what am I drilling" filter is visible first. */}
-          {selectedOpenings.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-1" aria-label="Active openings">
-              {selectedOpenings.map((tag) => (
-                <li key={tag}>
-                  <button
-                    type="button"
-                    onClick={() => removeOpening(tag)}
-                    aria-label={`Remove ${formatOpeningTag(tag)} opening filter`}
-                    className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                    title={formatOpeningTag(tag)}
-                  >
-                    <span className="max-w-[140px] truncate">{formatOpeningTag(tag)}</span>
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Selected-themes chip strip */}
-          {selectedThemes.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-1" aria-label="Active themes">
-              {selectedThemes.map((t) => (
-                <li key={t}>
-                  <button
-                    type="button"
-                    onClick={() => removeTheme(t)}
-                    aria-label={`Remove ${labelFor(t)} filter`}
-                    className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    <span>{labelFor(t)}</span>
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Rating range — compact side-by-side */}
-          <div className="mt-3">
-            <div className="mb-1 flex items-baseline justify-between">
-              <span className="text-[11px] font-semibold uppercase text-muted-foreground">Rating</span>
-              {!isRatingDefault && (
-                <button
-                  type="button"
-                  onClick={resetRating}
-                  className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <label className="sr-only" htmlFor="rating-min">Minimum rating</label>
-              <input
-                id="rating-min"
-                type="number"
-                className="w-full rounded border border-border bg-background px-1 py-0.5 text-center font-mono text-xs"
-                value={ratingMin}
-                onChange={(e) => { setRatingMin(Number(e.target.value)); queueRef.current = []; }}
-                min={400}
-                max={3000}
-                step={50}
-              />
-              <span className="text-xs text-muted-foreground">–</span>
-              <label className="sr-only" htmlFor="rating-max">Maximum rating</label>
-              <input
-                id="rating-max"
-                type="number"
-                className="w-full rounded border border-border bg-background px-1 py-0.5 text-center font-mono text-xs"
-                value={ratingMax}
-                onChange={(e) => { setRatingMax(Number(e.target.value)); queueRef.current = []; }}
-                min={400}
-                max={3000}
-                step={50}
-              />
-            </div>
-          </div>
-
-          {/* Skip-puzzle action — small icon button at the bottom. */}
-          <div className="mt-3 flex justify-end">
+          {/* Selected filter chips — inline in the header so the active
+              filters are visible without opening the popover. */}
+          {selectedOpenings.map((tag) => (
             <button
+              key={`o-${tag}`}
               type="button"
-              onClick={loadNext}
-              title="Skip current puzzle and load a new one"
-              aria-label="Skip puzzle"
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              onClick={() => removeOpening(tag)}
+              aria-label={`Remove ${formatOpeningTag(tag)} opening filter`}
+              className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              title={formatOpeningTag(tag)}
             >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <polygon points="5 4 15 12 5 20 5 4" />
-                <line x1="19" y1="5" x2="19" y2="19" />
-              </svg>
-              <span>Skip puzzle</span>
+              <span className="max-w-[120px] truncate">{formatOpeningTag(tag)}</span>
+              <span aria-hidden>×</span>
             </button>
-          </div>
-        </aside>
+          ))}
+          {selectedThemes.map((t) => (
+            <button
+              key={`t-${t}`}
+              type="button"
+              onClick={() => removeTheme(t)}
+              aria-label={`Remove ${labelFor(t)} filter`}
+              className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <span>{labelFor(t)}</span>
+              <span aria-hidden>×</span>
+            </button>
+          ))}
 
-        {/* ────── BOARD CENTRE ─────────────────────────────────────────── */}
-        <div className="flex min-h-0 min-w-0 flex-col items-center">
-          <div className="cg-board-fit">
-            <Chessground config={cgConfig} />
           </div>
-          {active && (
-            <div className="mt-2 flex w-full max-w-[640px] shrink-0 flex-col items-center gap-1">
-              <Link
-                to={`/analysis?fen=${encodeURIComponent(fen)}`}
-                className="inline-flex items-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft/40 px-3 py-1.5 text-xs font-medium text-accent hover:border-accent hover:bg-accent-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <span>Analyze position</span>
-              </Link>
-              <details className="text-[11px] text-muted-foreground">
-                <summary className="cursor-pointer list-none rounded px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                  Show puzzle ID
-                </summary>
-                <div className="mt-1 text-center">
-                  Puzzle <span className="font-mono">{active.row.id}</span> · rating{' '}
-                  <span className="font-mono">{active.row.rating}</span>
-                </div>
-              </details>
-            </div>
-          )}
-        </div>
 
-        {/* ────── STATUS SIDEBAR ───────────────────────────────────────── */}
-        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 text-sm">
           {/* Big primary status block — chess.com-style: one clear message + one primary action. */}
           <div
             role="status"
@@ -1019,6 +930,44 @@ export function Tactics() {
             >
               Next puzzle →
             </button>
+          )}
+
+          {/* Analyze position + puzzle ID — moved here from below the
+              board so the board stays in a fixed position regardless of
+              puzzle state. */}
+          {active && (
+            <div className="flex flex-col gap-1.5">
+              <Link
+                to={`/analysis?fen=${encodeURIComponent(fen)}`}
+                className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft/40 px-3 py-1.5 text-xs font-medium text-accent hover:border-accent hover:bg-accent-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <span>Analyze position</span>
+              </Link>
+              <details className="text-[11px] text-muted-foreground">
+                <summary className="cursor-pointer list-none rounded px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  Puzzle ID
+                </summary>
+                <div className="mt-1">
+                  <span className="font-mono">{active.row.id}</span> · rating{' '}
+                  <span className="font-mono">{active.row.rating}</span>
+                </div>
+              </details>
+            </div>
           )}
 
           {/* Compact footer — Attempts / Accuracy / DB count on one row. */}

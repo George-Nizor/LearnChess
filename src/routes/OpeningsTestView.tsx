@@ -138,11 +138,12 @@ export function OpeningsTestView({ repertoire }: TestViewProps): ReactNode {
     );
   }
 
+  // The board column is the same fixed size as on Learn / Drill /
+  // Explore — no chrome above or below it. Stats bar lives inside
+  // QuestionCard's sidebar so the board stays in place when the user
+  // tabs between modes.
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="shrink-0">
-        <StatsBar stats={stats} />
-      </div>
+    <div className="h-full min-h-0">
       {current && (
         <AnimatePresence mode="wait">
           <motion.div
@@ -151,11 +152,12 @@ export function OpeningsTestView({ repertoire }: TestViewProps): ReactNode {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.18 }}
-            className="min-h-0 flex-1"
+            className="h-full min-h-0"
           >
             <QuestionCard
               question={current}
               answered={answered}
+              stats={stats}
               onSubmit={(a) => { void handleSubmit(a); }}
               onNext={() => { void loadNext(); }}
             />
@@ -204,11 +206,12 @@ function StatsBar({ stats }: { stats: Stats }) {
 interface QuestionCardProps {
   question: TestQuestion;
   answered: AnswerState | null;
+  stats: Stats;
   onSubmit: (answer: AnswerState['answer']) => void;
   onNext: () => void;
 }
 
-function QuestionCard({ question, answered, onSubmit, onNext }: QuestionCardProps): ReactNode {
+function QuestionCard({ question, answered, stats, onSubmit, onNext }: QuestionCardProps): ReactNode {
   // Board overlay markers - depend on question state and kind
   const autoShapes = useMemo<DrawShape[]>(() => {
     if (!answered) return [];
@@ -280,36 +283,31 @@ function QuestionCard({ question, answered, onSubmit, onNext }: QuestionCardProp
 
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="flex min-h-0 min-w-0 flex-col items-center gap-2">
-        {/* Click-overlay wrapper. Treated as a button because it
-            captures click events to register the answer. Keyboard
-            users can still answer via the multi-choice path; a
-            click-to-square chess board is inherently a pointer
-            interaction and the static-element lint rules don't
-            account for that gracefully. We still expose a role +
-            label so screen readers announce the prompt. */}
-        <div
-          onClick={handleBoardClick}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); }}
-          role={question.kind === 'square-click' && answered === null ? 'button' : undefined}
-          tabIndex={question.kind === 'square-click' && answered === null ? 0 : -1}
-          aria-label={question.kind === 'square-click' && answered === null ? 'Click a square to answer' : undefined}
-          className={`cg-board-fit ${question.kind === 'square-click' && answered === null ? 'cursor-crosshair' : ''}`}
-        >
-          <Chessground config={cgConfig} />
-        </div>
-        {answered && (
-          <button
-            type="button"
-            onClick={onNext}
-            className="shrink-0 rounded-md bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground hover:opacity-90"
-          >
-            Next question →
-          </button>
-        )}
+      {/* Click-overlay wrapper. Treated as a button because it captures
+          click events to register the answer. Keyboard users can still
+          answer via the multi-choice path; a click-to-square chess board
+          is inherently a pointer interaction and the static-element lint
+          rules don't account for that gracefully. We still expose a role
+          + label so screen readers announce the prompt. */}
+      <div
+        onClick={handleBoardClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); }}
+        role={question.kind === 'square-click' && answered === null ? 'button' : undefined}
+        tabIndex={question.kind === 'square-click' && answered === null ? 0 : -1}
+        aria-label={question.kind === 'square-click' && answered === null ? 'Click a square to answer' : undefined}
+        className={`cg-board-fit ${question.kind === 'square-click' && answered === null ? 'cursor-crosshair' : ''}`}
+      >
+        <Chessground config={cgConfig} />
       </div>
 
       <aside className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto">
+        {/* Stats bar — moved here from the route-level top so it doesn't
+            shift the board's vertical position. Pinned at the top of the
+            sidebar instead. */}
+        <div className="shrink-0">
+          <StatsBar stats={stats} />
+        </div>
+
         <div className="rounded-md border border-border bg-elevated p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">
             {question.kind === 'square-click' ? 'Click a square' : 'Multiple choice'}
@@ -332,6 +330,16 @@ function QuestionCard({ question, answered, onSubmit, onNext }: QuestionCardProp
             question={answered.question}
             correct={answered.correct}
           />
+        )}
+
+        {answered && (
+          <button
+            type="button"
+            onClick={onNext}
+            className="shrink-0 rounded-md bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground hover:opacity-90"
+          >
+            Next question →
+          </button>
         )}
       </aside>
     </div>

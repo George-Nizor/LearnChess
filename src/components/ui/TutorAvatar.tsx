@@ -93,11 +93,11 @@ export function TutorAvatar({ pulseKey, size = 56, speaking = false }: TutorAvat
   return (
     <div
       className="relative flex shrink-0 items-center"
-      style={{ width: size + 8, height: size + 8 }}
+      style={{ width: size, height: size }}
     >
       <motion.div
         aria-hidden
-        className="relative flex shrink-0 items-center justify-center rounded-full bg-accent-soft ring-2 ring-accent/40 dark:ring-accent/30"
+        className="relative flex shrink-0 items-center justify-center"
         style={{ width: size, height: size }}
         {...bob}
       >
@@ -105,17 +105,16 @@ export function TutorAvatar({ pulseKey, size = 56, speaking = false }: TutorAvat
           key={pulseKey}
           {...nod}
           viewBox="0 0 100 100"
-          width={size - 4}
-          height={size - 4}
+          width={size}
+          height={size}
           className="overflow-visible"
         >
-          {/* Head — face fill. The accent-soft circle is the frame; this
-              inner circle gives the face its actual skin tone. We use a
-              warm-paper colour so the face reads as a friendly tutor
-              against the amber halo. */}
-          <circle cx="50" cy="50" r="36" fill="#f5e6c8" />
+          {/* Head — circular face. Warm-paper skin tone reads as friendly
+              against the charcoal page; no frame so the face floats on
+              the surface. */}
+          <circle cx="50" cy="50" r="42" fill="#f5e6c8" />
           {/* Subtle face shadow — rim along bottom-right, gives volume. */}
-          <circle cx="52" cy="54" r="34" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="2" />
+          <circle cx="52" cy="54" r="40" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="2" />
 
           {/* Eyebrows — small thick lines that lift on pulseKey change. */}
           <motion.g
@@ -179,15 +178,13 @@ export function TutorAvatar({ pulseKey, size = 56, speaking = false }: TutorAvat
           <circle cx="68" cy="58" r="3.5" fill="rgba(220, 100, 80, 0.18)" />
         </motion.svg>
 
-        {/* Inner glow ring — subtle gloss so the avatar doesn't read flat. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-white/15 to-transparent dark:from-white/10"
-        />
       </motion.div>
 
-      {/* Speaking indicator — three pulsing dots in a small bubble next
-          to the avatar. Renders only when `speaking` is true. */}
+      {/* Speaking indicator — three pulsing dots in a small bubble.
+          Positioned to the LEFT of the avatar (absolute right-full)
+          so it doesn't overlap with the line-name heading sitting to
+          the right of the avatar in the lesson sidebar. Renders only
+          when `speaking` is true. */}
       {speaking && !reduce && (
         <motion.span
           aria-label="Tutor is speaking"
@@ -195,7 +192,7 @@ export function TutorAvatar({ pulseKey, size = 56, speaking = false }: TutorAvat
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           transition={{ duration: 0.18 }}
-          className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-elevated px-2 py-1 ring-1 ring-border"
+          className="absolute right-full top-1/2 mr-2 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-full bg-elevated px-2 py-1 ring-1 ring-border"
         >
           {[0, 1, 2].map((i) => (
             <motion.span

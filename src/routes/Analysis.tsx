@@ -676,12 +676,12 @@ export function Analysis() {
         of <main>, so on narrow viewports the board shrinks rather than
         pushing the page off screen.
       */}
-      <div className="grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-[auto_minmax(0,1fr)_minmax(280px,360px)]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-6 lg:grid-cols-[auto_minmax(0,1fr)_360px]">
         {/* Eval bar — taller than before so it visually anchors the board. */}
         <div
           aria-label={`Evaluation ${evalLabel}`}
           aria-live="polite"
-          className="relative hidden h-full w-3 self-center overflow-hidden rounded border border-border bg-eval-black lg:block"
+          className="relative hidden h-full w-6 self-center overflow-hidden rounded border border-border bg-eval-black lg:block"
         >
           <div
             className="absolute bottom-0 left-0 right-0 bg-eval-white transition-[height] duration-200"
@@ -690,11 +690,19 @@ export function Analysis() {
           <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
         </div>
 
-        {/* Board column: top toolbar + board */}
-        <div className="flex min-h-0 min-w-0 flex-col items-center gap-2">
-          {/* Top toolbar — nav strip + flip + copy actions */}
-          <div className="flex w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1" role="group" aria-label="Move navigation">
+        {/* Board column — JUST the board so position is locked. The
+            move-nav + flip + copy toolbar moved to the right rail so
+            switching between Analysis / Play / etc. doesn't shift the
+            board's pixel position. */}
+        <div className="cg-board-fit min-h-0">
+          <Chessground config={cgConfig} />
+        </div>
+
+        {/* Right rail — toolbar + move tree + engine + position loader */}
+        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          {/* Toolbar (was above the board): nav strip + flip + copy. */}
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-elevated/40 p-1.5">
+            <div className="flex items-center gap-0.5" role="group" aria-label="Move navigation">
               <ToolbarButton
                 onClick={() => dispatch({ type: 'first' })}
                 label="Jump to start"
@@ -723,7 +731,7 @@ export function Analysis() {
                 glyph="⟫"
                 disabled={hState.currentPly === hState.history.length}
               />
-              <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+              <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
               <ToolbarButton
                 onClick={() => setFlipped((v) => !v)}
                 label="Flip board"
@@ -737,38 +745,29 @@ export function Analysis() {
               <button
                 type="button"
                 onClick={() => void copyFen()}
-                className="inline-flex items-center rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                Copy FEN
+                FEN
               </button>
               <button
                 type="button"
                 onClick={() => void copyPgn()}
-                className="inline-flex items-center rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                Copy PGN
+                PGN
               </button>
               {copyMessage && (
-                <span className="ml-1 text-xs text-muted-foreground" aria-live="polite">
+                <span className="ml-1 text-[11px] text-muted-foreground" aria-live="polite">
                   {copyMessage}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="cg-board-fit min-h-0">
-            <Chessground config={cgConfig} />
-          </div>
-
-          {/* Mobile-only inline eval label (the desktop eval bar is hidden < lg).
-              Screen readers get the eval through the chip's aria-label. */}
+          {/* Mobile-only inline eval label (the desktop eval bar is hidden < lg). */}
           <div className="text-xs text-muted-foreground lg:hidden" aria-live="polite">
             <EvalChip scoreCp={whiteCp} scoreMate={whiteMate} size="sm" />
           </div>
-        </div>
-
-        {/* Right rail — move tree, engine status + lines, position loader */}
-        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto">
           {/* Move tree — two-column grid (white | black) per move number. */}
           <section className="rounded-md border border-border bg-muted/30">
             <div className="flex items-baseline justify-between border-b border-border/60 px-3 py-2">
