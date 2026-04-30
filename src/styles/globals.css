@@ -79,12 +79,14 @@ html, body, #root {
 }
 
 html {
-  /* Bump base font-size from the browser default 16px → 18px. Tailwind's
-     `text-*` utilities use rem under the hood, so every UI label scales by
-     12.5% in step. The user explicitly asked for "+2px sitewide".
-     We avoid touching individual `text-xs`/`text-sm` classes — letting the
-     root drive the scale keeps the design system coherent. */
-  font-size: 18px;
+  /* Fluid root font-size. Tailwind utilities (text-*, p-*, gap-*, h-4/w-4
+     icons, etc.) all resolve in rem, so scaling the root scales the whole
+     design system in lockstep — no per-component breakpoints needed.
+     Anchored at 18px up to 1920px viewport (preserves the laptop look),
+     scales linearly to 24px at 3440px (ultrawide), capped above that.
+     Math: linear interp through (1920px → 18px) and (3440px → 24px);
+     0.395vw + 10.42px hits both endpoints, clamp() pins the ends. */
+  font-size: clamp(18px, calc(10.42px + 0.395vw), 24px);
   /* Smooth theme transitions — body / surfaces fade their colour, but only
      for properties humans notice changing. We intentionally do NOT animate
      `transform` here (would compete with framer-motion). */
