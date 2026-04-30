@@ -1,27 +1,44 @@
 # Resume plan — pick up here next session
 
-> Last touched 2026-04-30. Most recent landing: Phase 1a of the
-> opening-expansion plan — `'common-deviation'` schema added to the
-> prose parser + violet "If they deviate" pill in `LessonBubble`,
-> plus deviation prose authored on all 5 Pirc tabiyas as proof of
-> pattern (commit `92a7466`).
+> Last touched 2026-04-30 (overnight). Most recent landings:
+> Phase 1b + Phase 1c of the engagement-first deviation design.
 >
-> **User feedback after seeing Phase 1a**: a static text bullet is
-> not engaging enough. They want the chess.com Opening Challenges
-> model — deviations as navigable branches the user can step
-> through, OR as challenge positions to solve against the engine.
-> Phase 1b (rolling text deviations to other 12 openings) is **on
-> hold**. The new path is documented at the top of
-> `docs/OPENING_EXPANSION_PLAN.md` under "Engagement-first
-> deviation design".
+> **Phase 1b (commit `777c255`)**: lifted the 15 inline "Common
+> deviations: …" callouts on the 5 Pirc tabiyas into navigable,
+> drillable sibling lines. Schema-only — added `parentLineId` +
+> `deviationFromMove` to `OpeningLine`/`LineSpec`. Each deviation
+> shares its parent's lead-up plies, then branches with the
+> alternative White move + 1-3 plies of response, ending at a
+> tabiya summary node with the standard structured sections.
 >
-> **Top priority for the next session: implement Phase 1b** — lift
-> the 13 existing Pirc text deviations into branched sibling lines
-> (option A in the engagement-first design). Schema-only change:
-> add `parentLineId` + `deviationFromMove` to `LineSpec`, render
-> deviations indented under their parent in the line picker.
+> **Phase 1c (commit `084ab9d`)**: line-picker UI tweak — deviations
+> sort immediately after their parent, render with a left-indent
+> + thin violet border + small "Deviation" pill, tooltip names the
+> parent + branching ply. Drill weight for deviation edges is
+> `0.012` (≈¼ of a mainline lesson edge) so they show up in
+> rotation without flooding. New structural-invariant tests pin
+> the deviation schema (parent exists, deviationFromMove is
+> consistent, lead-up plies match the parent, branching ply
+> differs).
+>
+> **Top priority for the next session: Phase 1d — roll branched
+> lines to the remaining 12 openings.** The Pirc deviations are
+> the gold template; replicate the recipe per opening (3 deviations
+> per existing tabiya × 12 remaining openings ≈ 36 × ~3 = ~100
+> short sibling lines, each 12-16 plies, ~½-day authoring per
+> opening). The `Common deviations: …` prose for the other 12
+> openings does NOT exist yet — it has to be authored from scratch
+> using the deep-rewrite recipe in the file's header comment.
 >
 > Earlier landings still relevant:
+>   - Phase 1a (commit `92a7466`): `'common-deviation'` schema
+>     added to the prose parser + violet "If they deviate" pill in
+>     `LessonBubble`, plus deviation prose authored on all 5 Pirc
+>     tabiyas as proof of pattern. The inline prose is **kept**
+>     for now — Phase 1b lifted it into branched lines but the
+>     pill is still useful as a fallback for tabiyas that don't
+>     yet have branched deviation siblings, and for any "common
+>     mistake" prose we add later.
 >   - QA pass: 25 factual fixes across the 96 tabiyas + Stockfish-
 >     backed eval audit + chess.js tactical verification (commits
 >     `d382b62` / `c98c72d` / `6facc2f`).
@@ -33,7 +50,7 @@
 >     `d149149`): structured speech bubble + on-board overlays +
 >     pawn skeleton + Test mode SRS + inline puzzle solver.
 >
-> 138 tests pass; main is clean.
+> 136 tests pass; main is clean.
 
 ---
 
