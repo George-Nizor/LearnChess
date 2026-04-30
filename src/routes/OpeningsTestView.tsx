@@ -139,8 +139,10 @@ export function OpeningsTestView({ repertoire }: TestViewProps): ReactNode {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <StatsBar stats={stats} />
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="shrink-0">
+        <StatsBar stats={stats} />
+      </div>
       {current && (
         <AnimatePresence mode="wait">
           <motion.div
@@ -149,6 +151,7 @@ export function OpeningsTestView({ repertoire }: TestViewProps): ReactNode {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.18 }}
+            className="min-h-0 flex-1"
           >
             <QuestionCard
               question={current}
@@ -276,8 +279,8 @@ function QuestionCard({ question, answered, onSubmit, onNext }: QuestionCardProp
   }, [question, answered, onSubmit]);
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-      <div className="flex min-w-0 flex-col items-center gap-3">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+      <div className="flex min-h-0 min-w-0 flex-col items-center gap-2">
         {/* Click-overlay wrapper. Treated as a button because it
             captures click events to register the answer. Keyboard
             users can still answer via the multi-choice path; a
@@ -291,7 +294,7 @@ function QuestionCard({ question, answered, onSubmit, onNext }: QuestionCardProp
           role={question.kind === 'square-click' && answered === null ? 'button' : undefined}
           tabIndex={question.kind === 'square-click' && answered === null ? 0 : -1}
           aria-label={question.kind === 'square-click' && answered === null ? 'Click a square to answer' : undefined}
-          className={question.kind === 'square-click' && answered === null ? 'cursor-crosshair' : ''}
+          className={`cg-board-fit ${question.kind === 'square-click' && answered === null ? 'cursor-crosshair' : ''}`}
         >
           <Chessground config={cgConfig} />
         </div>
@@ -299,14 +302,14 @@ function QuestionCard({ question, answered, onSubmit, onNext }: QuestionCardProp
           <button
             type="button"
             onClick={onNext}
-            className="rounded-md bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground hover:opacity-90"
+            className="shrink-0 rounded-md bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground hover:opacity-90"
           >
             Next question →
           </button>
         )}
       </div>
 
-      <aside className="flex min-w-0 flex-col gap-3">
+      <aside className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto">
         <div className="rounded-md border border-border bg-elevated p-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">
             {question.kind === 'square-click' ? 'Click a square' : 'Multiple choice'}

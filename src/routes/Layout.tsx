@@ -36,7 +36,7 @@ export function Layout() {
 
   return (
     <PageMetaContext.Provider value={ctxValue}>
-      <div className="surface-transition flex min-h-full flex-col">
+      <div className="surface-transition flex h-screen flex-col">
         <header className="border-b border-border bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
           <PageShell pad={false} className="flex items-center justify-between gap-4 py-3">
             {/* Brand: logo + display-font wordmark. The whole pair links to
@@ -110,7 +110,7 @@ export function Layout() {
           </AnimatePresence>
         </header>
 
-        <main className="flex-1">
+        <main className="min-h-0 flex-1">
           <PageTransition pageKey={location.pathname}>
             <Outlet />
           </PageTransition>

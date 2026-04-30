@@ -235,17 +235,28 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
 
   const finished = nodeIdx === line.nodes.length - 1;
 
+  // The board column wraps the board in `.cg-board-fit` (a CSS
+  // container-queries-based square that fits the smaller of its
+  // parent's width and height). The container itself uses flex-1 so it
+  // gobbles the column's height after the controls strip below the
+  // board has taken its share. Bubble column scrolls vertically when
+  // prose is tall so the page itself never scrolls. The h-full chain
+  // traces back through AnimatePresence's flex-1 motion.div →
+  // CourseDetail's flex column → <main>'s min-h-0 flex-1 → Layout's
+  // h-screen.
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[auto_360px]">
-      <div className="flex flex-col items-center">
-        <Chessground config={cgConfig} />
-        <div className="mt-3 flex items-center gap-3">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[auto_minmax(280px,360px)]">
+      <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
+        <div className="cg-board-fit">
+          <Chessground config={cgConfig} />
+        </div>
+        <div className="mt-2 flex items-center gap-3">
           <button
             type="button"
             onClick={goPrev}
             disabled={nodeIdx === 0}
             aria-label="Previous move"
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-border bg-background px-3 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
           >
             ← Prev
           </button>
@@ -257,7 +268,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
             onClick={goNext}
             disabled={finished}
             aria-label="Next move"
-            className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md bg-accent px-4 py-1 text-sm font-semibold text-accent-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next →
           </button>
@@ -265,7 +276,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
             <button
               type="button"
               onClick={goRestart}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted"
+              className="rounded-md border border-border bg-background px-3 py-1 text-sm hover:bg-muted"
             >
               ↻ Restart
             </button>
@@ -273,10 +284,10 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
         </div>
       </div>
 
-      <aside aria-live="polite" className="flex min-w-0 flex-col gap-3">
+      <aside aria-live="polite" className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto">
         <div className="flex min-w-0 gap-3">
           <div className="flex-shrink-0 pt-1">
-            <Logo size={40} decorative />
+            <Logo size={32} decorative />
           </div>
           <div className="min-w-0 flex-1">
             <AnimatePresence mode="wait">
@@ -286,7 +297,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2 }}
-                className="relative rounded-2xl rounded-tl-sm border border-border bg-elevated p-5 text-[15px] leading-7 shadow-sm"
+                className="relative rounded-2xl rounded-tl-sm border border-border bg-elevated p-4 text-[14px] leading-6 shadow-sm"
               >
                 <span
                   aria-hidden
@@ -294,7 +305,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
                 />
                 <LessonBubble text={node.text} />
                 {finished && (
-                  <p className="mt-4 text-sm font-medium text-accent">
+                  <p className="mt-3 text-sm font-medium text-accent">
                     ✓ End of line — switch to Drill to test what you've learned.
                   </p>
                 )}
@@ -309,8 +320,8 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
             is the same as the parent so a duplicate would just be
             visual noise. */}
         {finished && (
-          <div className="flex items-center gap-3 rounded-md border border-border bg-elevated/40 p-3 text-xs">
-            <PawnSkeleton fen={fen} size={120} orientation={playerSide} />
+          <div className="flex items-center gap-3 rounded-md border border-border bg-elevated/40 p-2.5 text-xs">
+            <PawnSkeleton fen={fen} size={96} orientation={playerSide} />
             <div className="min-w-0">
               <div className="font-semibold uppercase tracking-wide text-muted-foreground">Pawn skeleton</div>
               <p className="mt-1 leading-snug text-muted-foreground">
@@ -548,11 +559,13 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
     sans.map((s, i) => (i % 2 === 0 ? `${i / 2 + 1}. ${s.san}` : s.san)).join(' ');
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[auto_320px]">
-      <div className="flex justify-center">
-        <Chessground config={cgConfig} />
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[auto_minmax(260px,320px)]">
+      <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
+        <div className="cg-board-fit">
+          <Chessground config={cgConfig} />
+        </div>
       </div>
-      <aside className="flex flex-col gap-3 text-sm">
+      <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto text-sm">
         <div role="status" aria-live="polite" className="rounded-md border border-border bg-elevated p-4">
           {sessionView?.finished ? (
             <>
@@ -623,11 +636,13 @@ function ExploreView({ repertoire, line }: { repertoire: Repertoire; line: Openi
     animation: { enabled: false, duration: 0 },
   };
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[auto_360px]">
-      <div className="flex justify-center">
-        <Chessground config={cgConfig} />
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[auto_minmax(280px,360px)]">
+      <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
+        <div className="cg-board-fit">
+          <Chessground config={cgConfig} />
+        </div>
       </div>
-      <aside className="flex flex-col gap-3 text-sm">
+      <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto text-sm">
         <div className="rounded-md border border-border bg-elevated p-4">
           <h3 className="text-base font-semibold">Open in Analysis Board</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -680,8 +695,8 @@ function LineCard({ line, active, progress, onSelect }: LineCardProps): ReactNod
           ? `Deviation off the ${line.parentLineId} mainline at ply ${line.deviationFromMove ?? '?'}`
           : undefined
       }
-      className={`group flex shrink-0 flex-col gap-1 rounded-md border p-3 text-left transition-colors ${
-        isDeviation ? 'min-w-[180px] max-w-[240px] ml-3 border-l-2 border-l-violet-400/60 dark:border-l-violet-300/40' : 'min-w-[200px] max-w-[260px]'
+      className={`group flex shrink-0 flex-col gap-0 rounded-md border px-2 py-1 text-left transition-colors ${
+        isDeviation ? 'min-w-[150px] max-w-[200px] ml-2 border-l-2 border-l-violet-400/60 dark:border-l-violet-300/40' : 'min-w-[170px] max-w-[220px]'
       } ${
         active
           ? 'border-accent bg-accent/10 shadow-sm'
@@ -689,11 +704,11 @@ function LineCard({ line, active, progress, onSelect }: LineCardProps): ReactNod
       }`}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className={`text-sm font-semibold leading-tight ${active ? 'text-foreground' : ''}`}>{line.name}</span>
+        <span className={`truncate text-[12px] font-semibold leading-tight ${active ? 'text-foreground' : ''}`}>{line.name}</span>
         <span
           aria-label={badgeTitle}
           title={badgeTitle}
-          className={`text-xs ${
+          className={`text-[10px] ${
             status === 'completed'
               ? 'text-accent'
               : status === 'in-progress'
@@ -704,17 +719,22 @@ function LineCard({ line, active, progress, onSelect }: LineCardProps): ReactNod
           {badge}
         </span>
       </div>
-      <p className="text-[11px] leading-snug text-muted-foreground">{line.description}</p>
-      <div className="mt-1 flex items-center gap-2">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+      <p
+        className="line-clamp-1 text-[10px] leading-snug text-muted-foreground"
+        title={line.description}
+      >
+        {line.description}
+      </p>
+      <div className="flex items-center gap-1.5">
+        <p className="text-[9px] uppercase tracking-wide text-muted-foreground">
           {line.nodes.length - 1} ply
         </p>
         {isDeviation && (
           <span
-            className="rounded-sm bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-900/40 dark:text-violet-200"
+            className="rounded-sm bg-violet-100 px-1 py-0 text-[8.5px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-900/40 dark:text-violet-200"
             aria-label="Deviation off the parent mainline"
           >
-            Deviation
+            Dev
           </span>
         )}
       </div>
@@ -852,48 +872,42 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
   }, [course, activeLineId]);
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div>
+    <div className="flex h-full min-w-0 flex-col gap-2 overflow-hidden">
+      {/* Compact header: back link + title + side badge + stats inline.
+          Replaces the previous tall card so the board has more room
+          on small laptops without sacrificing information density. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <button
           type="button"
           onClick={onBack}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Back to courses
+          ← Back
         </button>
-      </div>
-
-      <div className="rounded-md border border-border bg-elevated p-5">
-        <div className="flex items-baseline gap-3">
-          <h2 className="font-display text-2xl font-semibold leading-tight">{repertoire.name}</h2>
-          <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {repertoire.repForWhite ? 'White' : 'Black'}
+        <h2 className="font-display text-lg font-semibold leading-tight">{repertoire.name}</h2>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {repertoire.repForWhite ? 'White' : 'Black'}
+        </span>
+        <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span title="Lines you've walked through Learn mode end-to-end">
+            <span className="font-semibold text-foreground">{stats.linesCompleted}</span>
+            <span className="opacity-60"> / {stats.linesTotal}</span> lines
+          </span>
+          <span title="Your own-moves with at least a 7-day review interval">
+            <span className="font-semibold text-foreground">{stats.mastered}</span>
+            <span className="opacity-60"> / {stats.ownTotal}</span> mastered
           </span>
         </div>
-        {(course?.tagline ?? repertoire.description) && (
-          <p className="mt-1.5 text-sm text-muted-foreground">{course?.tagline ?? repertoire.description}</p>
-        )}
-        <div className="mt-4 flex flex-wrap gap-6">
-          <ProgressChip
-            label="Lines learned"
-            value={stats.linesCompleted}
-            total={stats.linesTotal}
-            hint="Lines you've walked through Learn mode end-to-end"
-          />
-          <ProgressChip
-            label="Moves mastered"
-            value={stats.mastered}
-            total={stats.ownTotal}
-            hint="Your own-moves with at least a 7-day review interval"
-          />
-        </div>
       </div>
+      {(course?.tagline ?? repertoire.description) && (
+        <p className="-mt-1 text-xs text-muted-foreground">{course?.tagline ?? repertoire.description}</p>
+      )}
 
       {course && course.lines.length > 0 && (
-        <section aria-label="Lines in this opening" className="rounded-md border border-border bg-elevated/40 p-3">
-          <div className="mb-2 flex items-baseline justify-between gap-2">
-            <h3 className="font-display text-sm font-semibold">Lines</h3>
-            <p className="text-[11px] text-muted-foreground">
+        <section aria-label="Lines in this opening" className="shrink-0 rounded-md border border-border bg-elevated/40 px-2 py-1.5">
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <h3 className="font-display text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lines</h3>
+            <p className="text-[10px] text-muted-foreground">
               {(() => {
                 const mainlineCount = course.lines.filter((l) => l.parentLineId === undefined).length;
                 const deviationCount = course.lines.length - mainlineCount;
@@ -903,7 +917,7 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
                   : `${mainlineCount} lines`;
                 return (
                   <>
-                    {base} · use <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">[</kbd> / <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">]</kbd> to switch
+                    {base} · <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">[</kbd> / <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">]</kbd>
                   </>
                 );
               })()}
@@ -926,7 +940,7 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
         </section>
       )}
 
-      <div className="flex items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
+      <div className="flex shrink-0 items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
         {(['learn', 'drill', 'explore', 'puzzles', 'test'] as Mode[]).map((m) => {
           const isActive = mode === m;
           // 'test' shares the 'no course = disabled' policy with
@@ -951,7 +965,7 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
               type="button"
               onClick={() => !disabled && setMode(m)}
               disabled={disabled}
-              className={`relative rounded px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`relative rounded px-3 py-1 text-[13px] font-medium transition-colors ${
                 isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
               } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
               title={disabled ? 'No prose course yet for this opening' : undefined}
@@ -964,7 +978,7 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
                 />
               )}
               <span className="relative inline-flex items-center gap-1.5">
-                <Icon size={15} />
+                <Icon size={14} />
                 {label}
               </span>
             </button>
@@ -972,6 +986,9 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
         })}
       </div>
 
+      {/* Mode body fills the remaining viewport height. Each mode view
+          assumes h-full and lays itself out internally; the board sizes
+          to the smaller of (this container's height, available width). */}
       <AnimatePresence mode="wait">
         <motion.div
           key={`${repertoire.id}-${activeLineId ?? 'none'}-${mode}`}
@@ -979,6 +996,7 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
+          className="min-h-0 flex-1"
         >
           {mode === 'learn' && course && activeLine && (
             <LearnView
@@ -1352,8 +1370,21 @@ export function Openings(): ReactNode {
     setSearchParams({});
   }, [setSearchParams]);
 
+  // Outer wrapper. Two modes:
+  //   - Catalogue (course list): scrolls vertically (this is the only
+  //     allowed scroll target — the user is browsing a long list).
+  //   - CourseDetail (inside a course): locked to viewport height so the
+  //     board + lesson bubble fit without page scroll. Internal scroll
+  //     is allowed within the lesson sidebar only.
+  const inCourse = courseSlug !== null && activeRep !== undefined;
   return (
-    <div className="mx-auto max-w-7xl p-6">
+    <div
+      className={
+        inCourse
+          ? 'mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3'
+          : 'mx-auto h-full max-w-7xl overflow-y-auto px-6 py-6'
+      }
+    >
       {courseSlug === null && (
         <Catalogue
           rows={catalogueRows}
@@ -1403,28 +1434,6 @@ export function Openings(): ReactNode {
           }}
         />
       )}
-    </div>
-  );
-}
-
-// ───── Friendly progress chip ────────────────────────────────────────────
-
-function ProgressChip({ label, value, total, hint }: { label: string; value: number; total: number; hint?: string }) {
-  const pct = total === 0 ? 0 : Math.round((value / total) * 100);
-  return (
-    <div title={hint} className="min-w-[140px]">
-      <div className="mb-1 flex items-baseline justify-between text-[11px]">
-        <span className="font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-        <span className="font-mono text-foreground">{value}/{total}</span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <motion.div
-          className="h-full bg-accent"
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.4 }}
-        />
-      </div>
     </div>
   );
 }

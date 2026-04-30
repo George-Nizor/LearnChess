@@ -337,17 +337,17 @@ export function PuzzleSolver({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.18 }}
-        className="flex min-w-0 flex-col items-center"
+        className="cg-board-fit"
       >
         <Chessground config={cgConfig} />
       </motion.div>
 
-      <aside className="flex min-w-0 flex-col gap-3 text-sm">
+      <aside className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto text-sm">
         <div
           role="status"
           aria-live="polite"

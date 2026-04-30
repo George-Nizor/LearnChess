@@ -144,19 +144,28 @@ h3 { font-weight: 500; }
    wrapper. We set the wrapper to fill the host explicitly so pieces always
    line up regardless of parent layout.
 
-   Sizing strategy (revised 2026-04-27): bound by viewport AND by parent.
-   `min(80vh, 90vw, 640px)` is the natural target, but using `width:` for
-   that pins the box at that size and overflows narrow grid cells (e.g.
-   /endgames where a 280px courses sidebar squeezes the inner column).
-   Wrapping it with `max-width: 100%` makes the host shrink under
-   parent pressure while keeping the viewport ceiling. The aspect-ratio
-   square keeps height in lockstep so we don't need to also set height
-   in vh units. */
+   Sizing strategy (revised 2026-04-30): the host is sized DOWNWARD by the
+   smallest of three constraints — its parent's available height, its
+   parent's available width, and the 640px hard cap. The `--board-max`
+   custom property lets each route override the parent-height ceiling
+   (e.g. CourseDetail subtracts its own chrome height); routes that
+   don't set it inherit the previous behaviour (~80vh fallback).
+
+   Critically: the host is square (aspect-ratio 1/1) and the bounding
+   measure is the SHORTER of the available space's two axes. We model
+   that with a helper `--board-side` that's a function of width AND
+   height, then set the host's width/height to that side. */
 .cg-board-host {
-  width: min(80vh, 90vw, 640px);
+  /* Default ceiling: 80vh. Routes that lay out the board inside a
+     fixed-height container (e.g. /openings CourseDetail) wrap the board
+     in `.cg-board-fit` (below) which uses container queries to size
+     the board to the smaller of (container width, container height).
+     This branch is the legacy fallback for routes not yet wrapped. */
+  --board-side: min(var(--board-max, 80vh), 90vw, 640px);
+  width: var(--board-side);
+  height: var(--board-side);
   max-width: 100%;
   aspect-ratio: 1 / 1;
-  height: auto;          /* required so aspect-ratio actually controls height */
   position: relative;
   flex-shrink: 1;
   min-width: 0;
@@ -174,6 +183,29 @@ h3 { font-weight: 500; }
   width: 100% !important;
   height: 100% !important;
   padding-bottom: 0 !important;
+}
+
+/* Container-query-based fit for routes that lay out the board inside a
+   fixed-height pane (e.g. /openings CourseDetail). The wrapper opts
+   into size containment, then `.cg-board-host` inside it sizes to the
+   smaller of (container width, container height, 640px). The board
+   stays square and never overflows its parent. */
+.cg-board-fit {
+  container-type: size;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+.cg-board-fit > .cg-board-host {
+  --board-side: min(100cqh, 100cqw, 640px);
+  width: var(--board-side);
+  height: var(--board-side);
+  max-width: 100%;
+  max-height: 100%;
 }
 
 /* Dark-mode chessground tweaks. The brown theme's light squares are quite

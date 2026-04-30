@@ -32,7 +32,7 @@ export function PageTransition({ pageKey, children }: PageTransitionProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration, ease: 'easeOut' }}
-        style={{ minHeight: '100%' }}
+        style={{ height: '100%', minHeight: 0 }}
       >
         {children}
       </motion.div>

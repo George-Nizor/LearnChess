@@ -21,3 +21,4 @@ public/puzzles.manifest.json
 
 # Developer machine helpers (not portable; gitignored).
 .dev/
+/.claude/

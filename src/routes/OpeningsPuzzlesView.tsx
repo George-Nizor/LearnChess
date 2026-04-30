@@ -198,8 +198,8 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
       return queueRef.current.shift() ?? null;
     };
     return (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
+      <div className="flex h-full min-h-0 flex-col gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">
             Solving puzzles from <span className="text-accent">{repertoire.name}</span>
           </h3>
@@ -211,18 +211,20 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
             ← Back to overview
           </button>
         </div>
-        <PuzzleSolver
-          loadNext={loadNext}
-          persist
-          footerLabel={`Drawn from real Lichess games tagged "${repertoire.name}". Spaced-repetition cards persist to your overall puzzle queue.`}
-          fullTacticsUrl={`/tactics?opening=${encodeURIComponent(slug)}`}
-        />
+        <div className="min-h-0 flex-1">
+          <PuzzleSolver
+            loadNext={loadNext}
+            persist
+            footerLabel={`Drawn from real Lichess games tagged "${repertoire.name}". Spaced-repetition cards persist to your overall puzzle queue.`}
+            fullTacticsUrl={`/tactics?opening=${encodeURIComponent(slug)}`}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto">
       {/* HEADER — count + rating band + primary CTA. */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-elevated/40 p-4">
         <div className="min-w-0">

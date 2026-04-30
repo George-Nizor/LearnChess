@@ -202,10 +202,12 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
     // this, a 1280-wide viewport ended up with 1024px of inner content
     // inside ~912px of available space and the bubble bled off the
     // right edge mid-word.
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)]">
-      <div className="flex min-w-0 flex-col items-center">
-        <Chessground config={cgConfig} />
-        <div className="mt-3 flex items-center gap-3">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)]">
+      <div className="flex min-h-0 min-w-0 flex-col items-center">
+        <div className="cg-board-fit">
+          <Chessground config={cgConfig} />
+        </div>
+        <div className="mt-2 flex items-center gap-3">
           <button
             type="button"
             onClick={goPrev}
@@ -242,7 +244,7 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
       {/* Speech-bubble panel — knight avatar + prose. Animates in on node change.
           `min-w-0` so the inner motion.div can wrap text instead of pushing
           past the column. */}
-      <aside aria-live="polite" className="flex min-w-0 gap-3">
+      <aside aria-live="polite" className="flex min-h-0 min-w-0 gap-3 overflow-y-auto">
         <div className="flex-shrink-0 pt-1">
           <Logo size={40} decorative />
         </div>
@@ -471,14 +473,12 @@ function DrillView({ position, onMastery }: DrillViewProps): ReactNode {
     // minmax(0,1fr) on both columns + min-w-0 on children so the right
     // panel (Hint / Restart / Move log) wraps within its column instead
     // of spilling past the viewport.
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
-      <div className="flex min-w-0 flex-col items-center gap-2">
-        <div className="flex w-[min(80vh,90vw,640px)] max-w-full flex-col gap-2">
-          <Chessground config={cgConfig} />
-        </div>
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
+      <div className="cg-board-fit">
+        <Chessground config={cgConfig} />
       </div>
 
-      <aside className="flex min-w-0 flex-col gap-3 text-sm">
+      <aside className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto text-sm">
         <div role="status" aria-live="polite" className="rounded-md border border-border bg-elevated p-3">
           <div className="text-xs uppercase text-muted-foreground">Status</div>
           <div className={`text-sm font-semibold uppercase ${
@@ -549,11 +549,11 @@ function ExploreView({ position }: { position: EndgamePosition }): ReactNode {
     animation: { enabled: false, duration: 0 },
   };
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)]">
-      <div className="flex min-w-0 justify-center">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)]">
+      <div className="cg-board-fit">
         <Chessground config={cgConfig} />
       </div>
-      <aside className="flex min-w-0 flex-col gap-3 text-sm">
+      <aside className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto text-sm">
         <div className="rounded-md border border-border bg-elevated p-4">
           <h3 className="text-base font-semibold">Open in Analysis Board</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -572,28 +572,6 @@ function ExploreView({ position }: { position: EndgamePosition }): ReactNode {
           Tip: the same Analysis Board powers the "Analyze position →" link from Tactics puzzles.
         </p>
       </aside>
-    </div>
-  );
-}
-
-// ───── Friendly progress chip ────────────────────────────────────────────
-
-function ProgressChip({ label, value, total, hint }: { label: string; value: number; total: number; hint?: string }): ReactNode {
-  const pct = total === 0 ? 0 : Math.round((value / total) * 100);
-  return (
-    <div title={hint} className="min-w-[140px]">
-      <div className="mb-1 flex items-baseline justify-between text-[11px]">
-        <span className="font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-        <span className="font-mono text-foreground">{value}/{total}</span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <motion.div
-          className="h-full bg-accent"
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.4 }}
-        />
-      </div>
     </div>
   );
 }
@@ -707,15 +685,16 @@ export function Endgames(): ReactNode {
   }, [activeCourse, discoveredByPos, masteryByPos]);
 
   return (
-    <div className="mx-auto max-w-7xl p-6">
+    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
       {/* Single shared grid: course sidebar (left) + content column (right).
           Putting EVERYTHING in one grid means the header, tabs, and mode body
           all align to the same left edge — same fix that was applied to
-          Openings.tsx for the alignment issue. */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[280px_minmax(0,1fr)]">
-        {/* Course sidebar — sticky on desktop so it stays visible while
-            scrolling through long Drill move lists. */}
-        <aside className="md:sticky md:top-4 md:self-start max-h-[calc(100vh-6rem)] overflow-y-auto rounded-md border border-border bg-elevated/40 p-3 text-sm">
+          Openings.tsx for the alignment issue. The sidebar scrolls
+          internally; the content column fits the viewport via
+          .cg-board-fit on the board placement. */}
+      <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
+        {/* Course sidebar — fully scrollable when course list is long. */}
+        <aside className="min-h-0 overflow-y-auto rounded-md border border-border bg-elevated/40 p-3 text-sm">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Courses</h3>
           </div>
@@ -772,32 +751,30 @@ export function Endgames(): ReactNode {
         {/* Right column — header, tabs, mode body all flow vertically and align
             to the same left edge as each other. `min-w-0` prevents long
             content (move lists, prose) from blowing the grid out. */}
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="rounded-md border border-border bg-elevated p-4">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
-              {activeCourse?.name ?? activePosition.category}
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden">
+          <div className="shrink-0 rounded-md border border-border bg-elevated px-3 py-2">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                {activeCourse?.name ?? activePosition.category}
+              </span>
+              <h2 className="font-display text-base font-semibold leading-tight">{activePosition.name}</h2>
+              <span className="text-[11px] text-muted-foreground">— {plainEnglishGoal(activePosition)}</span>
             </div>
-            <h2 className="font-display text-2xl font-semibold">{activePosition.name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{plainEnglishGoal(activePosition)}</p>
-            <p className="mt-2 text-xs text-muted-foreground">{activePosition.description}</p>
-            <div className="mt-3 flex flex-wrap gap-4 text-xs">
-              <ProgressChip
-                label="Lines learned"
-                value={courseStats.learned}
-                total={courseStats.learnedTotal}
-                hint="Lesson nodes seen across this course in Learn mode"
-              />
-              <ProgressChip
-                label="Mastered"
-                value={courseStats.mastered}
-                total={courseStats.masteredTotal}
-                hint="Up to 5 stars per position — earned by efficient drill wins"
-              />
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0 text-[11px] text-muted-foreground">
+              <span title="Lesson nodes seen across this course in Learn mode">
+                <span className="font-semibold text-foreground">{courseStats.learned}</span>
+                <span className="opacity-60"> / {courseStats.learnedTotal}</span> learned
+              </span>
+              <span title="Up to 5 stars per position — earned by efficient drill wins">
+                <span className="font-semibold text-foreground">{courseStats.mastered}</span>
+                <span className="opacity-60"> / {courseStats.masteredTotal}</span> mastered
+              </span>
+              <span className="line-clamp-1 opacity-60" title={activePosition.description}>{activePosition.description}</span>
             </div>
           </div>
 
           {/* Mode tab strip — uses framer-motion layoutId for the sliding pill */}
-          <div className="flex items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
+          <div className="flex shrink-0 items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
             {(['learn', 'drill', 'explore'] as Mode[]).map((m) => {
               const isActive = mode === m;
               const disabled = m === 'learn' && !lesson;
@@ -842,6 +819,7 @@ export function Endgames(): ReactNode {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
+              className="min-h-0 flex-1"
             >
               {mode === 'learn' && lesson && (
                 <LearnView

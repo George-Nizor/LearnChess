@@ -89,7 +89,7 @@ export function Dashboard() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl p-6">
+    <div className="mx-auto h-full max-w-7xl overflow-y-auto px-6 py-6">
       <header className="mb-6 flex items-baseline justify-end">
         <button
           type="button"

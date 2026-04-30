@@ -263,9 +263,9 @@ export function Play() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl p-6">
+    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
       {engineError && (
-        <div role="alert" className="mb-4 rounded-md border border-border bg-muted p-3 text-sm">
+        <div role="alert" className="mb-2 shrink-0 rounded-md border border-border bg-muted p-3 text-sm">
           <strong>Engine:</strong> {engineError}
           <p className="mt-1 text-muted-foreground">
             Run <code className="font-mono">pnpm vendor:engine</code> to populate <code className="font-mono">public/engine/</code>.
@@ -273,11 +273,11 @@ export function Play() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[auto_1fr_280px]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[auto_minmax(0,1fr)_minmax(240px,280px)]">
         {showEvalBar ? (
           <div
             aria-label={`Evaluation ${evalLabel}`}
-            className="relative h-[min(80vh,640px)] w-6 overflow-hidden rounded border border-border bg-eval-black"
+            className="relative h-full w-6 overflow-hidden rounded border border-border bg-eval-black"
           >
             <div
               className="absolute bottom-0 left-0 right-0 bg-eval-white transition-[height] duration-200"
@@ -292,11 +292,11 @@ export function Play() {
           <div className="w-0" />
         )}
 
-        <div className="flex justify-center">
+        <div className="cg-board-fit">
           <Chessground config={cgConfig} onApiReady={(api) => { apiRef.current = api; }} />
         </div>
 
-        <aside className="flex flex-col gap-4 rounded-md border border-border bg-muted/40 p-4">
+        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto rounded-md border border-border bg-muted/40 p-3">
           <section>
             <div className="mb-2 flex items-baseline justify-between">
               <span id="strength-label" className="text-sm font-medium">Strength</span>

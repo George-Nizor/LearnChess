@@ -480,9 +480,9 @@ export function Tactics() {
   })();
 
   return (
-    <div className="mx-auto max-w-7xl p-6">
-      <header className="mb-4 flex items-baseline justify-between">
-        <h1 className="text-3xl font-semibold">Tactics</h1>
+    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
+      <header className="mb-2 flex shrink-0 items-baseline justify-between">
+        <h1 className="text-xl font-semibold">Tactics</h1>
         <div className="text-sm text-muted-foreground">
           rating <span className="font-mono font-medium text-foreground">{userRating.rating}</span>
           <span className="ml-1 text-xs">±{userRating.rd}</span>
@@ -490,9 +490,9 @@ export function Tactics() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[200px_auto_300px]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[200px_minmax(0,1fr)_300px]">
         {/* ────── FILTER SIDEBAR (compact, ≈200px) ─────────────────────── */}
-        <aside className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+        <aside className="min-h-0 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 text-sm">
           <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Filters</h3>
 
           {/* Theme picker — collapsed-by-default popover trigger.
@@ -887,10 +887,12 @@ export function Tactics() {
         </aside>
 
         {/* ────── BOARD CENTRE ─────────────────────────────────────────── */}
-        <div className="flex flex-col items-center">
-          <Chessground config={cgConfig} />
+        <div className="flex min-h-0 min-w-0 flex-col items-center">
+          <div className="cg-board-fit">
+            <Chessground config={cgConfig} />
+          </div>
           {active && (
-            <div className="mt-3 flex w-full max-w-[640px] flex-col items-center gap-2">
+            <div className="mt-2 flex w-full max-w-[640px] shrink-0 flex-col items-center gap-1">
               <Link
                 to={`/analysis?fen=${encodeURIComponent(fen)}`}
                 className="inline-flex items-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft/40 px-3 py-1.5 text-xs font-medium text-accent hover:border-accent hover:bg-accent-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -926,7 +928,7 @@ export function Tactics() {
         </div>
 
         {/* ────── STATUS SIDEBAR ───────────────────────────────────────── */}
-        <aside className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4 text-sm">
+        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 text-sm">
           {/* Big primary status block — chess.com-style: one clear message + one primary action. */}
           <div
             role="status"

@@ -656,9 +656,9 @@ export function Analysis() {
   const noHistoryYet = movePairs.length === 0;
 
   return (
-    <div className="mx-auto max-w-7xl p-6">
+    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
       {engineError && (
-        <div role="alert" className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <div role="alert" className="mb-2 shrink-0 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
           <strong>Engine error:</strong> {engineError}
           <p className="mt-1 text-xs">
             Run <code className="font-mono">npm run vendor:engine</code> to populate <code className="font-mono">public/engine/</code>.
@@ -670,16 +670,18 @@ export function Analysis() {
         Three-column layout, lichess-style:
           [eval bar] [board column] [right rail]
         Eval bar is `auto` width (it's a 12px stripe), the board column flexes
-        to its intrinsic max (chessground sets its own size via .cg-board-host),
-        and the right rail is a fixed 360px so the PV move chips have enough
-        horizontal real estate to breathe.
+        to fill the row (cg-board-fit container queries down to its smaller
+        axis), and the right rail is a fixed 360px so the PV move chips have
+        enough horizontal real estate to breathe. The grid itself is h-full
+        of <main>, so on narrow viewports the board shrinks rather than
+        pushing the page off screen.
       */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr_360px]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-4 lg:grid-cols-[auto_minmax(0,1fr)_minmax(280px,360px)]">
         {/* Eval bar — taller than before so it visually anchors the board. */}
         <div
           aria-label={`Evaluation ${evalLabel}`}
           aria-live="polite"
-          className="relative hidden h-[min(80vh,640px)] w-3 self-center overflow-hidden rounded border border-border bg-eval-black lg:block"
+          className="relative hidden h-full w-3 self-center overflow-hidden rounded border border-border bg-eval-black lg:block"
         >
           <div
             className="absolute bottom-0 left-0 right-0 bg-eval-white transition-[height] duration-200"
@@ -689,9 +691,9 @@ export function Analysis() {
         </div>
 
         {/* Board column: top toolbar + board */}
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex min-h-0 min-w-0 flex-col items-center gap-2">
           {/* Top toolbar — nav strip + flip + copy actions */}
-          <div className="flex w-full max-w-[min(80vh,90vw,640px)] flex-wrap items-center justify-between gap-2">
+          <div className="flex w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1" role="group" aria-label="Move navigation">
               <ToolbarButton
                 onClick={() => dispatch({ type: 'first' })}
@@ -754,7 +756,9 @@ export function Analysis() {
             </div>
           </div>
 
-          <Chessground config={cgConfig} />
+          <div className="cg-board-fit min-h-0">
+            <Chessground config={cgConfig} />
+          </div>
 
           {/* Mobile-only inline eval label (the desktop eval bar is hidden < lg).
               Screen readers get the eval through the chip's aria-label. */}
@@ -764,7 +768,7 @@ export function Analysis() {
         </div>
 
         {/* Right rail — move tree, engine status + lines, position loader */}
-        <aside className="flex flex-col gap-3">
+        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto">
           {/* Move tree — two-column grid (white | black) per move number. */}
           <section className="rounded-md border border-border bg-muted/30">
             <div className="flex items-baseline justify-between border-b border-border/60 px-3 py-2">
