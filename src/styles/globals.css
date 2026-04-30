@@ -5,68 +5,71 @@
  * The @theme block exposes them as CSS variables AND generates utility classes
  * (e.g. `bg-background` becomes available because we declared `--color-background`).
  *
- * Palette philosophy (chess.com/lichess inspired):
- *   - Light theme: warm off-white "paper" with a slight cream tint, charcoal
- *     foreground; sage-green accent for highlight (the "good move" colour).
- *   - Dark theme: warm dark (oklch ~22% with a hint of brown chroma) so it
- *     doesn't fight chessground's brown board; same sage accent at higher
- *     lightness for legibility.
+ * Palette philosophy (2026-04-30 redesign — modern charcoal):
+ *   - Light theme: bright off-white surface for daytime reading. Achromatic
+ *     greys (no warm cream tint) so the chessground board's natural browns
+ *     read as the only warm element on the page.
+ *   - Dark theme: deep charcoal (oklch ~16%) with achromatic ramps and a
+ *     SINGLE warm amber accent. The previous sage/green accent is gone —
+ *     now there's one accent colour and it's the same hue across themes.
  *   - Surface elevation: `--color-muted` is one step "up" from background,
  *     `--color-elevated` is two steps up (used for cards over the muted nav).
  *   - Eval-bar tokens kept (consumed by Play.tsx via `bg-eval-white` etc.).
  *
  * Contrast (verified by OKLCH lightness deltas):
- *   Light: foreground 18% on background 98% → ~14:1 (AAA body, AAA large)
+ *   Light: foreground 18% on background 98% → ~14:1 (AAA body)
  *          muted-foreground 42% on background 98% → ~7:1 (AAA body)
- *          accent-foreground 99% on accent 55% → ~4.6:1 (AA non-text bg ok)
- *   Dark:  foreground 95% on background 22% → ~13:1 (AAA body)
- *          muted-foreground 70% on background 22% → ~6.4:1 (AA body)
- *          accent-foreground 12% on accent 70% → ~9:1 (AAA body)
+ *          accent-foreground 14% on accent 65% → ~5.2:1 (AA body)
+ *   Dark:  foreground 96% on background 16% → ~16:1 (AAA body)
+ *          muted-foreground 68% on background 16% → ~7.2:1 (AAA body)
+ *          accent-foreground 14% on accent 78% → ~9.5:1 (AAA body)
  */
 @theme {
-  /* Surfaces */
-  --color-background: oklch(98.5% 0.008 95);
-  --color-foreground: oklch(18% 0.01 95);
-  --color-muted: oklch(94.5% 0.012 95);
-  --color-muted-foreground: oklch(42% 0.012 95);
-  --color-elevated: oklch(99.5% 0.004 95);
-  --color-border: oklch(88% 0.012 95);
-  --color-border-strong: oklch(78% 0.014 95);
+  /* Surfaces — achromatic ramp, no chroma. */
+  --color-background: oklch(98.5% 0 0);
+  --color-foreground: oklch(18% 0 0);
+  --color-muted: oklch(95% 0 0);
+  --color-muted-foreground: oklch(42% 0 0);
+  --color-elevated: oklch(99.5% 0 0);
+  --color-border: oklch(89% 0 0);
+  --color-border-strong: oklch(78% 0 0);
 
-  /* Brand accent — sage / warm green: the "good move" colour. */
-  --color-accent: oklch(55% 0.13 145);
-  --color-accent-foreground: oklch(99% 0.005 145);
-  --color-accent-soft: oklch(92% 0.05 145);
+  /* Brand accent — warm amber. The single colour the eye lands on:
+     active-line border, primary buttons, focus ring, lesson highlights. */
+  --color-accent: oklch(65% 0.16 70);
+  --color-accent-foreground: oklch(14% 0.02 70);
+  --color-accent-soft: oklch(92% 0.05 70);
 
   /* Functional tokens (kept for existing trainer routes) */
   --color-eval-white: oklch(95% 0 0);
-  --color-eval-black: oklch(20% 0 0);
+  --color-eval-black: oklch(18% 0 0);
 
-  /* Typography — display + body. Display is loaded as a Google Font in
-     index.html; body falls back to system Helvetica-stack if Inter fails to
-     load (offline-first principle). */
+  /* Typography. Display is Fraunces (variable serif, opsz + wght axes) for
+     character on titles and brand. Body is Inter for unflashy readability.
+     Mono is JetBrains Mono for FEN / PGN / move counters. All loaded via
+     Google Fonts in index.html; system fallbacks render immediately. */
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Bricolage Grotesque", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: "Fraunces", "Iowan Old Style", "Apple Garamond", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
 @variant dark (&:where(.dark, .dark *));
 
-/* Dark theme — warm dark (a touch of warmth from positive `b` chroma at
-   hue 75 = amber/brown) so it sits well next to chessground's brown board. */
+/* Dark theme — deep charcoal. Achromatic ramp from near-black up; the
+   single non-grey colour anywhere is the amber accent. */
 .dark {
-  --color-background: oklch(22% 0.012 75);
-  --color-foreground: oklch(95% 0.008 95);
-  --color-muted: oklch(27% 0.014 75);
-  --color-muted-foreground: oklch(70% 0.012 95);
-  --color-elevated: oklch(30% 0.014 75);
-  --color-border: oklch(34% 0.014 75);
-  --color-border-strong: oklch(44% 0.016 75);
+  --color-background: oklch(16% 0 0);
+  --color-foreground: oklch(96% 0 0);
+  --color-muted: oklch(20% 0 0);
+  --color-muted-foreground: oklch(68% 0 0);
+  --color-elevated: oklch(23% 0 0);
+  --color-border: oklch(28% 0 0);
+  --color-border-strong: oklch(40% 0 0);
 
-  /* Brighten the accent so it pops on the dark surface; same hue. */
-  --color-accent: oklch(70% 0.16 145);
-  --color-accent-foreground: oklch(12% 0.04 145);
-  --color-accent-soft: oklch(34% 0.06 145);
+  /* Slightly warmer amber on dark — better legibility, more warmth. */
+  --color-accent: oklch(78% 0.14 75);
+  --color-accent-foreground: oklch(14% 0.02 75);
+  --color-accent-soft: oklch(28% 0.06 75);
 }
 
 html, body, #root {
@@ -90,25 +93,27 @@ body {
   font-family: var(--font-sans);
   background-color: var(--color-background);
   color: var(--color-foreground);
-  /* Subtle paper-like gradient in light mode; flat in dark mode. The radial
-     stays under 5% lightness range so it never competes with content. */
+  /* Subtle achromatic gradient — gives the surface depth without colour. */
   background-image:
     radial-gradient(
       circle at 50% -10%,
-      oklch(99.5% 0.01 95 / 1) 0%,
-      oklch(98.5% 0.008 95 / 1) 60%,
-      oklch(97% 0.01 95 / 1) 100%
+      oklch(99.5% 0 0 / 1) 0%,
+      oklch(98.5% 0 0 / 1) 60%,
+      oklch(96% 0 0 / 1) 100%
     );
   transition: background-color 200ms ease, color 200ms ease;
 }
 
+/* Dark mode body — near-black with a faint vignette so the board sits
+   in a "stage" rather than floating on a flat surface. The lightness
+   range stays under 6% so content reads as the only thing of note. */
 .dark body {
   background-image:
     radial-gradient(
-      circle at 50% -10%,
-      oklch(25% 0.014 75 / 1) 0%,
-      oklch(22% 0.012 75 / 1) 60%,
-      oklch(20% 0.012 75 / 1) 100%
+      ellipse 80% 60% at 50% 35%,
+      oklch(19% 0 0 / 1) 0%,
+      oklch(16% 0 0 / 1) 50%,
+      oklch(13% 0 0 / 1) 100%
     );
 }
 
@@ -208,26 +213,35 @@ h3 { font-weight: 500; }
   max-height: 100%;
 }
 
-/* Dark-mode chessground tweaks. The brown theme's light squares are quite
-   bright (~oklch 88%) and clash with our oklch 22% page background — they
-   look like a glowing rectangle. Tone the squares down ~10% lightness in
-   dark mode so the board reads as part of the page. The dark squares are
-   already dark enough; nudge them slightly warmer to match our background. */
+/* Dark-mode chessground tweaks. The board IS the hero in our charcoal
+   theme — its natural browns are the only warm element on the page, so
+   we let them sit at full saturation and only nudge the lightness for
+   contrast against the near-black background. Light squares warm cream
+   (~70% L), dark squares deep walnut (~38% L). The board frames itself
+   against the charcoal page like a chess study on a black tablecloth. */
 .dark .cg-board {
-  background-color: oklch(60% 0.04 70);  /* light squares */
+  background-color: oklch(70% 0.06 75);  /* light squares (warm cream) */
 }
 .dark cg-board square.light {
-  background-color: oklch(63% 0.045 70);
+  background-color: oklch(72% 0.065 75);
 }
 .dark cg-board square.dark {
-  background-color: oklch(38% 0.04 60);
+  background-color: oklch(38% 0.05 60);
 }
-/* Coordinates inside the board — the brown.css uses dark text on light
-   squares which becomes hard to read once we dim the squares. */
+/* Coordinates inside the board — high-contrast against the warm squares. */
 .dark .cg-wrap coords.ranks coord,
 .dark .cg-wrap coords.files coord {
-  color: oklch(85% 0.01 95);
-  text-shadow: 0 1px 1px oklch(25% 0.01 75 / 0.6);
+  color: oklch(20% 0.02 75);
+  text-shadow: 0 1px 1px oklch(85% 0.04 75 / 0.5);
+}
+
+/* Subtle drop-shadow under the board so it lifts off the charcoal page
+   like a physical board on a studio backdrop. The shadow is achromatic
+   so the board's warmth stays the only colour on the page. */
+.dark .cg-board-host {
+  box-shadow: 0 8px 24px -8px oklch(0% 0 0 / 0.6),
+              0 2px 6px oklch(0% 0 0 / 0.4);
+  border-radius: 4px;
 }
 
 /* Honour user preference for reduced motion — disables the body fade and any

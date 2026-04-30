@@ -31,10 +31,10 @@ import {
   type Repertoire,
 } from '@/openings';
 import { DrillSession, type SessionView } from '@/openings/drillSession';
-import { Logo } from '@/components/ui/Logo';
 import { MiniBoardPreview } from '@/components/ui/MiniBoardPreview';
-import { LessonBubble } from '@/components/ui/LessonBubble';
+import { LessonBubbleStream } from '@/components/ui/LessonBubbleStream';
 import { PawnSkeleton } from '@/components/ui/PawnSkeleton';
+import { TutorAvatar } from '@/components/ui/TutorAvatar';
 import { extractVisualMarkers, parseProse } from '@/openings/proseParser';
 import {
   LearnIcon, DrillIcon, ExploreIcon, PuzzlesIcon, TestIcon,
@@ -235,28 +235,30 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
 
   const finished = nodeIdx === line.nodes.length - 1;
 
-  // The board column wraps the board in `.cg-board-fit` (a CSS
-  // container-queries-based square that fits the smaller of its
-  // parent's width and height). The container itself uses flex-1 so it
-  // gobbles the column's height after the controls strip below the
-  // board has taken its share. Bubble column scrolls vertically when
-  // prose is tall so the page itself never scrolls. The h-full chain
-  // traces back through AnimatePresence's flex-1 motion.div →
-  // CourseDetail's flex column → <main>'s min-h-0 flex-1 → Layout's
-  // h-screen.
+  // Board-as-hero layout (2026-04-30 redesign):
+  //   - Board column is the visual focus. Sits on the page surface with
+  //     no card chrome around it; the dark-mode CSS adds a subtle drop
+  //     shadow so it lifts off the charcoal page like a study board on a
+  //     studio backdrop.
+  //   - Controls strip (Prev / counter / Next) lives directly under the
+  //     board, also chrome-free.
+  //   - Sidebar is the tutor: avatar at the top, then a stream of
+  //     short bubbles fading in one after another. The whole sidebar
+  //     scrolls if a tabiya has many sections; the page itself never
+  //     scrolls.
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[auto_minmax(280px,360px)]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[auto_minmax(300px,380px)]">
       <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
         <div className="cg-board-fit">
           <Chessground config={cgConfig} />
         </div>
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-3 flex items-center gap-3">
           <button
             type="button"
             onClick={goPrev}
             disabled={nodeIdx === 0}
             aria-label="Previous move"
-            className="rounded-md border border-border bg-background px-3 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-border bg-background/60 px-3 py-1 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
           >
             ← Prev
           </button>
@@ -268,7 +270,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
             onClick={goNext}
             disabled={finished}
             aria-label="Next move"
-            className="rounded-md bg-accent px-4 py-1 text-sm font-semibold text-accent-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next →
           </button>
@@ -276,7 +278,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
             <button
               type="button"
               onClick={goRestart}
-              className="rounded-md border border-border bg-background px-3 py-1 text-sm hover:bg-muted"
+              className="rounded-md border border-border bg-background/60 px-3 py-1 text-sm hover:bg-muted"
             >
               ↻ Restart
             </button>
@@ -284,35 +286,30 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
         </div>
       </div>
 
-      <aside aria-live="polite" className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto">
-        <div className="flex min-w-0 gap-3">
-          <div className="flex-shrink-0 pt-1">
-            <Logo size={32} decorative />
-          </div>
-          <div className="min-w-0 flex-1">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`${line.id}-${nodeIdx}`}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.2 }}
-                className="relative rounded-2xl rounded-tl-sm border border-border bg-elevated p-4 text-[14px] leading-6 shadow-sm"
-              >
-                <span
-                  aria-hidden
-                  className="absolute -left-2 top-3 h-3 w-3 rotate-45 border-b border-l border-border bg-elevated"
-                />
-                <LessonBubble text={node.text} />
-                {finished && (
-                  <p className="mt-3 text-sm font-medium text-accent">
-                    ✓ End of line — switch to Drill to test what you've learned.
-                  </p>
-                )}
-              </motion.div>
-            </AnimatePresence>
+      <aside aria-live="polite" className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="flex shrink-0 items-center gap-3">
+          <TutorAvatar pulseKey={`${line.id}-${nodeIdx}`} size={48} />
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Tutor
+            </div>
+            <div className="font-display text-base font-medium leading-tight text-foreground">
+              {line.name}
+              <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                · move {nodeIdx} / {line.nodes.length - 1}
+              </span>
+            </div>
           </div>
         </div>
+
+        <LessonBubbleStream text={node.text} nodeKey={`${line.id}-${nodeIdx}`} />
+
+        {finished && (
+          <div className="shrink-0 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent-foreground/90 dark:bg-accent/15">
+            <span className="font-semibold text-accent">✓ End of line</span>{' '}
+            — switch to Drill to test what you've learned.
+          </div>
+        )}
 
         {/* Pawn-skeleton diagram: only show on the FINAL tabiya node
             where structural understanding matters most. Earlier per-
@@ -320,13 +317,15 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
             is the same as the parent so a duplicate would just be
             visual noise. */}
         {finished && (
-          <div className="flex items-center gap-3 rounded-md border border-border bg-elevated/40 p-2.5 text-xs">
-            <PawnSkeleton fen={fen} size={96} orientation={playerSide} />
+          <div className="flex shrink-0 items-center gap-3 rounded-xl border border-border bg-elevated/40 p-3 text-xs">
+            <PawnSkeleton fen={fen} size={88} orientation={playerSide} />
             <div className="min-w-0">
-              <div className="font-semibold uppercase tracking-wide text-muted-foreground">Pawn skeleton</div>
+              <div className="font-display text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Pawn skeleton
+              </div>
               <p className="mt-1 leading-snug text-muted-foreground">
                 The pawn structure of this tabiya. Most middlegame
-                plans are about these pawns - everything else moves
+                plans are about these pawns — everything else moves
                 around them.
               </p>
             </div>
