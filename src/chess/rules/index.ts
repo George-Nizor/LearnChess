@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import type { Color, PieceSymbol, Square } from 'chess.js';
+import type { PieceSymbol, Square } from 'chess.js';
 
 export type { Color, PieceSymbol, Square } from 'chess.js';
 export { Chess } from 'chess.js';
@@ -103,5 +103,3 @@ export function isPromotion(game: Chess, from: Square, to: Square): boolean {
   return (piece.color === 'w' && toRank === '8') || (piece.color === 'b' && toRank === '1');
 }
 
-const _color: Color = 'w';
-void _color;

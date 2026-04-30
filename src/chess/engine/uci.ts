@@ -15,6 +15,12 @@ export interface UciBestMove {
   ponder?: string;
 }
 
+function parseNum(v: string | undefined): number | undefined {
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  return isNaN(n) ? undefined : n;
+}
+
 export function parseInfo(line: string): UciInfo | null {
   if (!line.startsWith('info ')) return null;
   const tokens = line.slice(5).split(/\s+/);
@@ -26,41 +32,41 @@ export function parseInfo(line: string): UciInfo | null {
 
     switch (tok) {
       case 'depth': {
-        const v = tokens[++i];
-        if (v !== undefined) info.depth = Number(v);
+        const n = parseNum(tokens[++i]);
+        if (n !== undefined) info.depth = n;
         break;
       }
       case 'seldepth': {
-        const v = tokens[++i];
-        if (v !== undefined) info.seldepth = Number(v);
+        const n = parseNum(tokens[++i]);
+        if (n !== undefined) info.seldepth = n;
         break;
       }
       case 'multipv': {
-        const v = tokens[++i];
-        if (v !== undefined) info.multipv = Number(v);
+        const n = parseNum(tokens[++i]);
+        if (n !== undefined) info.multipv = n;
         break;
       }
       case 'nodes': {
-        const v = tokens[++i];
-        if (v !== undefined) info.nodes = Number(v);
+        const n = parseNum(tokens[++i]);
+        if (n !== undefined) info.nodes = n;
         break;
       }
       case 'nps': {
-        const v = tokens[++i];
-        if (v !== undefined) info.nps = Number(v);
+        const n = parseNum(tokens[++i]);
+        if (n !== undefined) info.nps = n;
         break;
       }
       case 'time': {
-        const v = tokens[++i];
-        if (v !== undefined) info.time = Number(v);
+        const n = parseNum(tokens[++i]);
+        if (n !== undefined) info.time = n;
         break;
       }
       case 'score': {
         const kind = tokens[++i];
-        const val = tokens[++i];
-        if (val === undefined) break;
-        if (kind === 'cp') info.scoreCp = Number(val);
-        else if (kind === 'mate') info.scoreMate = Number(val);
+        const n = parseNum(tokens[++i]);
+        if (n === undefined) break;
+        if (kind === 'cp') info.scoreCp = n;
+        else if (kind === 'mate') info.scoreMate = n;
         break;
       }
       case 'pv': {

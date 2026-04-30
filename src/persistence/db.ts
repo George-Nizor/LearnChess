@@ -77,7 +77,7 @@ interface LearnChessDB extends DBSchema {
     value: UserRating;
   };
   endgameAttempts: {
-    key: string;
+    key: number; // autoIncrement
     value: EndgameAttempt;
     indexes: { 'by-positionId': string; 'by-attemptedAt': number };
   };

@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 import { Chessground } from '@/chess/board';
 import { StockfishEngine } from '@/chess/engine';
 import type { Square } from '@/chess/rules';
-import { isPromotion, lastMoveSquares, legalDests, tryMove, tryMoveUci, turnColor } from '@/chess/rules';
+import { lastMoveSquares, legalDests, tryMove, tryMoveUci, turnColor } from '@/chess/rules';
 import { playSound, soundForMove } from '@/sound';
 import { usePlayStore } from '@/state/play';
 import type { Api } from 'chessground/api';
@@ -118,7 +118,7 @@ export function Play() {
   const handleMove = useCallback(
     (from: Square, to: Square) => {
       const probe = new Chess(game.fen());
-      const promotion: 'q' | 'r' | 'b' | 'n' = isPromotion(game, from, to) ? 'q' : 'q';
+      const promotion = 'q' as const; // auto-queen; underpromote picker deferred
       const result = tryMove(probe, from, to, promotion);
       const ok = applyMoveFromSquares(from, to, promotion);
       if (ok && result) playSound(soundForMove(result));

@@ -1,7 +1,7 @@
 /**
  * build-puzzles.ts
  * Ingest the Lichess puzzle CSV (downloaded to .cache/) into a normalized
- * SQLite database, prune to a balanced ~50k subset, write public/puzzles.db.
+ * SQLite database, prune to a balanced ~200k subset, write public/puzzles.db.
  *
  * Schema and pruning rationale: docs/research/puzzle-db.md.
  *
@@ -334,7 +334,7 @@ async function ensureSourceDownloaded(): Promise<void> {
   const { createWriteStream } = await import('node:fs');
   const { pipeline } = await import('node:stream/promises');
   const fileStream = createWriteStream(SOURCE_CSV_ZST);
-  await pipeline(Readable.fromWeb(res.body as never), fileStream);
+  await pipeline(Readable.fromWeb(res.body as ReadableStream), fileStream);
   console.log(`[build-puzzles] saved to ${SOURCE_CSV_ZST}`);
 }
 

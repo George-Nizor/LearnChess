@@ -59,11 +59,10 @@ export async function probeTablebase(fen: string, signal?: AbortSignal): Promise
 }
 
 export function gradeMove(
-  beforeFen: string,
+  _beforeFen: string,
   beforeResp: TbResponse,
   uci: string,
 ): { grade: 'optimal' | 'good' | 'inaccuracy' | 'losing' | 'unknown'; played?: TbMove; optimal?: TbMove } {
-  void beforeFen;
   const played = beforeResp.moves.find((m) => m.uci === uci);
   const optimal = beforeResp.moves[0];
   if (!played || !optimal) return { grade: 'unknown' };

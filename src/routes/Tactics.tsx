@@ -265,7 +265,7 @@ export function Tactics() {
       if (!expected) return;
       const expectedFrom = expected.slice(0, 2);
       const expectedTo = expected.slice(2, 4);
-      const promotion = isPromotion(game, from, to) ? 'q' : 'q';
+      const promotion = 'q' as const; // auto-queen; underpromote picker deferred
 
       if (from !== expectedFrom || to !== expectedTo) {
         // Allow any move that delivers checkmate as the final move

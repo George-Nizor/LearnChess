@@ -271,9 +271,9 @@ export class PuzzlesDb {
     }
 
     // Stage 3: last resort — allow already-attempted puzzles back in so the
-    // user is never stuck with an empty queue. Eventually every long-running
-    // session lands here once the matching pool is genuinely exhausted.
-    consume(this.execQuery(themes, openingTags, ratingMin, ratingMax, oversample), false);
+    // user is never stuck with an empty queue. Use the widened rating window
+    // so we draw from the largest possible pool when cycling back.
+    consume(this.execQuery(themes, openingTags, widenedMin, widenedMax, oversample), false);
     return out;
   }
 

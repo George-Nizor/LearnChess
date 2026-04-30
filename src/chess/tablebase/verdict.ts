@@ -59,6 +59,10 @@ export function verdictText(
       };
     case 'draw':
       return { text: 'Drawn with best play', tone: 'neutral' };
+    case 'maybe-win':
+      return { text: 'You are likely losing (tablebase uncertain)', tone: 'bad' };
+    case 'maybe-loss':
+      return { text: 'You are likely winning (tablebase uncertain)', tone: 'good' };
     default:
       return { text: tb.category, tone: 'unknown' };
   }
