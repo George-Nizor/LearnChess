@@ -9,10 +9,11 @@
  *   npm run build:puzzles
  */
 
-import { existsSync, mkdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
+import { spawnSync } from 'node:child_process';
 import Database from 'better-sqlite3';
 import { parse } from 'csv-parse';
 import { decompress } from 'fzstd';
@@ -319,27 +320,79 @@ function writeDb(selected: SurvivorRow[]): { themesCount: number; openingTagsCou
 
 const PUZZLE_DUMP_URL = 'https://database.lichess.org/lichess_db_puzzle.csv.zst';
 
-async function ensureSourceDownloaded(): Promise<void> {
-  if (existsSync(SOURCE_CSV_ZST)) return;
-  console.log(`[build-puzzles] source not found at ${SOURCE_CSV_ZST}`);
-  console.log(`[build-puzzles] downloading from ${PUZZLE_DUMP_URL} (~280 MB, may take a few minutes)…`);
+/**
+ * Resolve the puzzle CSV.zst into `SOURCE_CSV_ZST`. Three paths in priority
+ * order:
+ *
+ *   1. `SOURCE_CSV_ZST` already exists  → noop (the BuildKit cache mount
+ *      and dev iteration both rely on this).
+ *   2. `PUZZLE_DUMP_PATH` env var is set → copy from that local path. For
+ *      air-gapped or flaky-network homelab builds where you stage the
+ *      dump out-of-band (e.g. via `docker build --secret` or by
+ *      mounting a volume into the build context). The file must exist;
+ *      if it doesn't we error out — silently falling back to the
+ *      network would surprise the operator who explicitly opted out.
+ *   3. Network download via `wget` → child-process call instead of
+ *      Node's built-in fetch(). undici on Alpine has a known class of
+ *      ETIMEDOUT issues against some homelab DNS / NAT setups even
+ *      when curl/wget through the same network work fine; busybox's
+ *      wget (already in `node:22-alpine`) sidesteps it.
+ */
+function ensureSourceDownloaded(): void {
+  if (existsSync(SOURCE_CSV_ZST)) {
+    console.log(`[build-puzzles] reusing existing ${SOURCE_CSV_ZST}`);
+    return;
+  }
   mkdirSync(dirname(SOURCE_CSV_ZST), { recursive: true });
-  const res = await fetch(PUZZLE_DUMP_URL);
-  if (!res.ok) {
-    throw new Error(`[build-puzzles] download failed: HTTP ${res.status} ${res.statusText}`);
+
+  const stagedPath = process.env['PUZZLE_DUMP_PATH'];
+  if (stagedPath !== undefined && stagedPath !== '') {
+    if (!existsSync(stagedPath)) {
+      throw new Error(
+        `[build-puzzles] PUZZLE_DUMP_PATH=${stagedPath} does not exist. ` +
+          `Either stage the file at that path or unset the env var to fall back to network download.`,
+      );
+    }
+    console.log(`[build-puzzles] copying staged dump from ${stagedPath} → ${SOURCE_CSV_ZST}`);
+    copyFileSync(stagedPath, SOURCE_CSV_ZST);
+    console.log(`[build-puzzles] staged copy complete`);
+    return;
   }
-  if (!res.body) {
-    throw new Error('[build-puzzles] download failed: empty response body');
+
+  console.log(`[build-puzzles] downloading from ${PUZZLE_DUMP_URL} (~280 MB, may take a few minutes)…`);
+  const result = spawnSync(
+    'wget',
+    ['-q', '--tries=3', '--timeout=120', '-O', SOURCE_CSV_ZST, PUZZLE_DUMP_URL],
+    { stdio: ['ignore', 'inherit', 'inherit'] },
+  );
+
+  if (result.error) {
+    // wget binary missing or unspawnable. Tell the operator exactly which
+    // way out is closest to hand.
+    throw new Error(
+      `[build-puzzles] wget unavailable: ${result.error.message}. ` +
+        `Install wget (alpine: it's in busybox by default; debian: 'apt-get install -y wget') ` +
+        `or stage the dump locally and set PUZZLE_DUMP_PATH.`,
+    );
   }
-  const { createWriteStream } = await import('node:fs');
-  const { pipeline } = await import('node:stream/promises');
-  const fileStream = createWriteStream(SOURCE_CSV_ZST);
-  await pipeline(Readable.fromWeb(res.body as ReadableStream), fileStream);
+  if (result.status !== 0) {
+    // wget non-zero. Could be DNS, TLS, 4xx, timeout, disk full — the
+    // exit code alone is rarely enough to know, so we surface the raw
+    // status and remind the caller of the staged-path escape hatch.
+    // wget already printed its own error to stderr (we inherited it).
+    if (existsSync(SOURCE_CSV_ZST)) unlinkSync(SOURCE_CSV_ZST);
+    throw new Error(
+      `[build-puzzles] wget exited with status ${result.status} (signal ${result.signal ?? 'none'}). ` +
+        `See wget's stderr above for the underlying cause. ` +
+        `If your build host can't reach database.lichess.org, download the dump out-of-band and ` +
+        `set PUZZLE_DUMP_PATH to its local path before re-running.`,
+    );
+  }
   console.log(`[build-puzzles] saved to ${SOURCE_CSV_ZST}`);
 }
 
 async function main(): Promise<void> {
-  await ensureSourceDownloaded();
+  ensureSourceDownloaded();
 
   const sourceStat = statSync(SOURCE_CSV_ZST);
   console.log(`[build-puzzles] source: ${SOURCE_CSV_ZST} (${(sourceStat.size / 1024 / 1024).toFixed(1)} MB)`);
@@ -375,5 +428,16 @@ async function main(): Promise<void> {
 
 void main().catch((err: Error) => {
   console.error('[build-puzzles] failed:', err.message);
+  // Surface the underlying cause when present — Node's fetch() / undici
+  // wraps the real error (DNS, ECONNRESET, ETIMEDOUT) in `err.cause`,
+  // which the previous handler dropped on the floor and left the
+  // operator with a generic "fetch failed".
+  const cause = (err as Error & { cause?: unknown }).cause;
+  if (cause instanceof Error) {
+    const code = (cause as Error & { code?: string }).code;
+    console.error(`[build-puzzles]   cause: ${cause.message}${code !== undefined ? ` (code=${code})` : ''}`);
+  } else if (cause !== undefined) {
+    console.error(`[build-puzzles]   cause:`, cause);
+  }
   process.exit(1);
 });

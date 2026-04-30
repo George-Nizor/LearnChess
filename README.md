@@ -130,6 +130,26 @@ The Docker build needs outbound network for:
 
 Run-time network is **optional** — only the Endgames pillar pings `tablebase.lichess.ovh` for verdicts. Everything else works fully offline after the first asset load.
 
+The CSV download is cached across builds via a BuildKit cache mount, so monthly rebuilds skip the 280 MB re-fetch. Run `docker builder prune` when you actually want a fresh dump (Lichess refreshes the dataset monthly).
+
+### Air-gapped or flaky-network builds (`PUZZLE_DUMP_PATH`)
+
+If your build host can't reach `database.lichess.org` — common on segmented homelab networks, behind a corporate proxy, or when undici hangs against your DNS setup — stage the dump out-of-band:
+
+```bash
+# On a machine that CAN reach Lichess:
+curl -L -o lichess_db_puzzle.csv.zst \
+  https://database.lichess.org/lichess_db_puzzle.csv.zst
+
+# Drop it into .cache/ before building. The build:puzzles script
+# auto-detects and reuses existing files at this path:
+mkdir -p .cache
+mv lichess_db_puzzle.csv.zst .cache/
+docker compose build
+```
+
+Alternatively, set `PUZZLE_DUMP_PATH` to point at a file anywhere on the build host and the script copies it into `.cache/` for you. If the env var is set but the file doesn't exist, the build errors out with a clear message rather than silently falling back to the network — opt-out is explicit.
+
 ## Architecture
 
 ```

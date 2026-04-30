@@ -62,7 +62,15 @@ COPY . .
 # heap is right at the edge, so we lift it to avoid intermittent OOMs
 # on memory-constrained CI runners and home-lab Docker hosts.
 RUN npm run vendor:engine
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build:puzzles
+
+# BuildKit cache mount keeps the 280 MB Lichess puzzle CSV across
+# rebuilds — `.cache/lichess_db_puzzle.csv.zst` survives between
+# `docker build` invocations so monthly refreshes skip the re-download.
+# build-puzzles.ts honours the existing-file check, so the cache hit
+# is automatic. Wipe with `docker builder prune` when you actually
+# want a fresh dump (Lichess refreshes the dataset monthly).
+RUN --mount=type=cache,target=/app/.cache \
+    NODE_OPTIONS="--max-old-space-size=4096" npm run build:puzzles
 
 # Production Vite build into /app/dist
 RUN npm run build
@@ -97,7 +105,7 @@ RUN find /dist -type f \
 # fholzer/nginx-brotli ships brotli_static + brotli on dynamic
 # compression. ~15 MB image. Runs as `nginx` user on port 8080 by
 # default (no privileged ports needed).
-FROM fholzer/nginx-brotli:v1.27.5
+FROM fholzer/nginx-brotli:v1.30.0
 
 # Drop to non-root user. The base image's default config writes pid
 # and access logs to locations the nginx user can write; we keep
