@@ -10,6 +10,7 @@ import { nextCard } from '@/puzzles/scheduler';
 import { INITIAL_USER_RATING, ratingBand, updateRating, type RatingState } from '@/puzzles/rating';
 import { GROUP_LABELS, groupThemes, labelFor, type ThemeGroup } from '@/puzzles/themes';
 import {
+  getAttemptedPuzzleIds,
   getRecentPuzzleAttempts,
   getUserRating,
   recordPuzzleAttempt,
@@ -99,6 +100,13 @@ export function Tactics() {
   const recordedRef = useRef(false);
   const queueRef = useRef<PuzzleRow[]>([]);
   const themeTriggerRef = useRef<HTMLButtonElement>(null);
+  /*
+   * Set of every puzzle id the user has ever attempted. Hydrated once from
+   * IndexedDB on mount, then mutated synchronously inside `recordAttempt`
+   * so the next `db.query()` call sees the just-played puzzle excluded.
+   * Mirrors Lichess's `round` collection lookup in PuzzleSelector.scala.
+   */
+  const attemptedIdsRef = useRef<Set<string>>(new Set());
 
   // Load puzzle DB once
   useEffect(() => {
@@ -138,7 +146,7 @@ export function Tactics() {
     );
   }, [searchParams, setSearchParams]);
 
-  // Hydrate persisted user rating + session counters
+  // Hydrate persisted user rating + session counters + attempted-ids set
   useEffect(() => {
     void getUserRating('tactics').then((r) => {
       if (r) setUserRatingState({ rating: r.rating, rd: r.rd });
@@ -146,6 +154,9 @@ export function Tactics() {
     void getRecentPuzzleAttempts(50).then((arr) => {
       setRecentAttempts(arr.length);
       setSolvedCount(arr.filter((a) => a.solved).length);
+    });
+    void getAttemptedPuzzleIds().then((ids) => {
+      attemptedIdsRef.current = new Set(ids);
     });
   }, []);
 
@@ -173,6 +184,7 @@ export function Tactics() {
         ratingMin: f.ratingMin,
         ratingMax: f.ratingMax,
         limit: 25,
+        excludeIds: attemptedIdsRef.current,
       });
     }
     const next = queueRef.current.shift();
@@ -223,6 +235,7 @@ export function Tactics() {
         timeMs: Date.now() - currentActive.startedAt,
         hintsUsed: currentActive.hintsUsed,
       });
+      attemptedIdsRef.current.add(currentActive.row.id);
       setRecentAttempts((n) => n + 1);
       if (solved) setSolvedCount((n) => n + 1);
     },

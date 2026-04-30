@@ -44,6 +44,18 @@ export interface PuzzleQueryOpts {
   ratingMax?: number;
   limit?: number;
   randomSeed?: number;
+  /**
+   * Puzzle ids the caller has already attempted. Excluded from the result
+   * set whenever possible. Mirrors Lichess's `round` $lookup in
+   * PuzzleSelector.scala — the runtime guarantee that powers "see something
+   * new every time". The Set is consulted but never mutated.
+   *
+   * The compromise ladder (see `query`) will progressively relax constraints
+   * if the unseen pool is too thin: first widen the rating window, then —
+   * as a last resort — let already-attempted puzzles back in so the user
+   * is never stuck with an empty queue.
+   */
+  excludeIds?: ReadonlySet<string>;
 }
 
 export class PuzzlesDb {
@@ -124,9 +136,21 @@ export class PuzzlesDb {
     return rows.map((r) => r.name);
   }
 
-  query(opts: PuzzleQueryOpts = {}): PuzzleRow[] {
-    const { themes = [], openingTags = [], ratingMin = 600, ratingMax = 3200, limit = 20 } = opts;
-
+  /**
+   * Internal: run a single SELECT against the puzzles table with the given
+   * filter. Quality-sorted (popularity, nb_plays) so we surface the best
+   * vetted puzzles first — this is the spirit of Lichess's `tier` system
+   * (PuzzlePath.scala) collapsed into an ORDER BY clause. Tiebreaker on
+   * `p.id` keeps the ordering stable so the JS-side shuffle is the only
+   * source of randomness.
+   */
+  private execQuery(
+    themes: string[],
+    openingTags: string[],
+    ratingMin: number,
+    ratingMax: number,
+    limit: number,
+  ): PuzzleRow[] {
     const whereParts: string[] = ['p.rating BETWEEN ? AND ?'];
     const args: (string | number)[] = [ratingMin, ratingMax];
 
@@ -140,9 +164,6 @@ export class PuzzlesDb {
 
     if (openingTags.length > 0) {
       from += ` JOIN puzzle_opening_tags pot ON pot.puzzle_id = p.id JOIN opening_tags ot ON ot.id = pot.opening_tag_id`;
-      // Split into exact matches (IN clause — single SQL fragment) and
-      // prefix matches (one LIKE per entry). They OR together so the
-      // AND with the rating predicate stays correct.
       const exact: string[] = [];
       const likes: string[] = [];
       for (const tag of openingTags) {
@@ -174,7 +195,7 @@ export class PuzzlesDb {
       FROM ${from}
       WHERE ${whereParts.join(' AND ')}
       GROUP BY p.id
-      ORDER BY RANDOM()
+      ORDER BY p.popularity DESC, p.nb_plays DESC, p.id
       LIMIT ?
     `;
     args.push(limit);
@@ -188,15 +209,84 @@ export class PuzzlesDb {
   }
 
   /**
+   * Public puzzle picker. Ports Lichess's `PuzzleSelector.findNextPuzzleFor`
+   * + `PuzzlePathApi.nextFor` compromise ladder, collapsed for our scale:
+   *
+   *  1. Quality-sorted candidate pool (top of `popularity DESC, nb_plays
+   *     DESC`), oversampled ~10×, then JS-shuffled — same shape as their
+   *     `top → good → all` tier walk.
+   *  2. `excludeIds` (the user's attempted set) is applied JS-side so we
+   *     never return a puzzle they've already played.
+   *  3. If the unseen pool comes up short, widen rating ±200 and retry
+   *     (their "compromise" loop, simplified to one extra step).
+   *  4. Last-resort: drop the exclusion entirely so the user is never
+   *     handed an empty queue. Equivalent to Lichess's `compromise == 5`.
+   */
+  query(opts: PuzzleQueryOpts = {}): PuzzleRow[] {
+    const {
+      themes = [],
+      openingTags = [],
+      ratingMin = 600,
+      ratingMax = 3200,
+      limit = 20,
+      excludeIds,
+    } = opts;
+
+    // Oversample so we can JS-filter and shuffle without round-tripping to
+    // SQL on every miss. 12× empirically gives enough headroom even when
+    // the user has solved most of the matching pool.
+    const oversample = Math.max(limit * 12, 200);
+
+    const seen = new Set<string>();
+    const out: PuzzleRow[] = [];
+
+    const consume = (rows: PuzzleRow[], honorExclude: boolean): void => {
+      // Fisher-Yates shuffle. JS Math.random is intentionally non-deterministic
+      // here so consecutive calls with the same filter yield different orderings.
+      for (let i = rows.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = rows[i]!;
+        rows[i] = rows[j]!;
+        rows[j] = tmp;
+      }
+      for (const r of rows) {
+        if (out.length >= limit) break;
+        if (seen.has(r.id)) continue;
+        if (honorExclude && excludeIds?.has(r.id)) continue;
+        seen.add(r.id);
+        out.push(r);
+      }
+    };
+
+    // Stage 1: tight filter, exclude attempted.
+    consume(this.execQuery(themes, openingTags, ratingMin, ratingMax, oversample), true);
+    if (out.length >= limit) return out;
+
+    // Stage 2: widen rating ±200, still exclude attempted.
+    const widenedMin = Math.max(0, ratingMin - 200);
+    const widenedMax = Math.min(3500, ratingMax + 200);
+    if (widenedMin < ratingMin || widenedMax > ratingMax) {
+      consume(this.execQuery(themes, openingTags, widenedMin, widenedMax, oversample), true);
+      if (out.length >= limit) return out;
+    }
+
+    // Stage 3: last resort — allow already-attempted puzzles back in so the
+    // user is never stuck with an empty queue. Eventually every long-running
+    // session lands here once the matching pool is genuinely exhausted.
+    consume(this.execQuery(themes, openingTags, ratingMin, ratingMax, oversample), false);
+    return out;
+  }
+
+  /**
    * Convenience helper for the cross-link from the Openings page —
    * `puzzlesForOpening('Italian_Game', 25)` runs a prefix LIKE without
    * any theme filtering. Useful for "give me 25 Italian Game puzzles"
    * without forcing the caller to construct the LIKE wildcard or pass
    * the full PuzzleQueryOpts shape.
    */
-  puzzlesForOpening(openingTagPrefix: string, limit: number): PuzzleRow[] {
+  puzzlesForOpening(openingTagPrefix: string, limit: number, excludeIds?: ReadonlySet<string>): PuzzleRow[] {
     const prefix = openingTagPrefix.endsWith('%') ? openingTagPrefix : `${openingTagPrefix}%`;
-    return this.query({ openingTags: [prefix], limit });
+    return this.query(excludeIds ? { openingTags: [prefix], limit, excludeIds } : { openingTags: [prefix], limit });
   }
 
   count(): number {

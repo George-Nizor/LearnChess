@@ -128,6 +128,18 @@ export async function recordPuzzleAttempt(attempt: PuzzleAttempt): Promise<void>
   await db.put('puzzleAttempts', attempt);
 }
 
+/**
+ * Every puzzle id the user has ever attempted (whether solved or not).
+ * Used by the Tactics selector to skip already-played puzzles, mirroring
+ * Lichess's `round` lookup in PuzzleSelector.scala. Loaded once into an
+ * in-memory Set at session start; the Set is then mutated as the user
+ * plays.
+ */
+export async function getAttemptedPuzzleIds(): Promise<string[]> {
+  const db = await getDB();
+  return db.getAllKeys('puzzleAttempts');
+}
+
 export async function getRecentPuzzleAttempts(limit = 50): Promise<PuzzleAttempt[]> {
   const db = await getDB();
   const all: PuzzleAttempt[] = [];
