@@ -156,22 +156,36 @@ export async function importCuratedSpec(opening: Opening): Promise<number> {
  * Each line is a linear chain of moves; we walk it through chess.js to get
  * authoritative SAN/FEN at every ply, then emit one RepMove per edge.
  *
- * Weight = LESSON_EDGE_WEIGHT (small constant, well below any plausible
- * normalised book-sibling weight). Reason: book.ts weights are normalised
- * to fractions of 1 across siblings at each branch (e.g. 0.5/0.3/0.2 for
- * three replies). If we emitted lesson edges at weight=1, they would
- * out-rank every book-mainline reply on the same fromFen — turning the
- * drill into a forced-Byrne-System experience because the lessons-only
- * 4.Bg5 (weight 1) beats the book's 4.Nf3 (weight 0.5). Setting lesson
- * weight to 0.05 gives lessons-only branches a small but non-zero share
- * (~5%) under weighted-random opponent selection while preserving book's
- * tuned probabilities for branches it already covers.
+ * Weight = LESSON_EDGE_WEIGHT for mainlines, LESSON_DEVIATION_EDGE_WEIGHT
+ * for deviation lines (see below). Both are small constants, well below
+ * any plausible normalised book-sibling weight. Reason: book.ts weights
+ * are normalised to fractions of 1 across siblings at each branch
+ * (e.g. 0.5/0.3/0.2 for three replies). If we emitted lesson edges at
+ * weight=1, they would out-rank every book-mainline reply on the same
+ * fromFen — turning the drill into a forced-Byrne-System experience
+ * because the lessons-only 4.Bg5 (weight 1) beats the book's 4.Nf3
+ * (weight 0.5). Setting lesson weight to 0.05 gives lessons-only branches
+ * a small but non-zero share (~5%) under weighted-random opponent
+ * selection while preserving book's tuned probabilities for branches it
+ * already covers.
+ *
+ * Deviation lines (Phase 1b — see `OpeningLine.parentLineId`) emit at a
+ * smaller weight (0.012 ≈ ¼ of a mainline edge) so the user encounters
+ * them in drill rotation without being flooded — they're rare alternatives
+ * to the parent line, not co-equal mainlines. The de-dup pass keeps the
+ * higher weight at any (fromFen, toFen) shared with a mainline, so
+ * common lead-up plies stay at full mainline weight; only the BRANCHED
+ * plies get the lower deviation weight.
  */
 const LESSON_EDGE_WEIGHT = 0.05;
+const LESSON_DEVIATION_EDGE_WEIGHT = 0.012;
 
 function lessonCourseMoves(course: OpeningCourse, repertoireId: number, userSide: 'w' | 'b'): RepMove[] {
   const out: RepMove[] = [];
   for (const line of course.lines) {
+    const lineWeight = line.parentLineId !== undefined
+      ? LESSON_DEVIATION_EDGE_WEIGHT
+      : LESSON_EDGE_WEIGHT;
     const game = new Chess();
     let parentFen = STARTING_FEN_FULL;
     for (const node of line.nodes) {
@@ -194,7 +208,7 @@ function lessonCourseMoves(course: OpeningCourse, repertoireId: number, userSide
         san: move.san,
         uci: move.from + move.to + (move.promotion ?? ''),
         isOwnMove: isOwn,
-        weight: LESSON_EDGE_WEIGHT,
+        weight: lineWeight,
         deleted: false,
         learningStep: srs.learningStep ?? 0,
         learningDueAt: srs.learningDueAt ?? Date.now(),

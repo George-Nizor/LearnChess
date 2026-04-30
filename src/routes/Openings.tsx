@@ -668,13 +668,21 @@ function LineCard({ line, active, progress, onSelect }: LineCardProps): ReactNod
   const badge = status === 'completed' ? '●' : status === 'in-progress' ? '◐' : '◯';
   const badgeTitle =
     status === 'completed' ? 'Completed' : status === 'in-progress' ? 'In progress' : 'Not started';
+  const isDeviation = line.parentLineId !== undefined;
 
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-pressed={active}
-      className={`group flex min-w-[200px] max-w-[260px] shrink-0 flex-col gap-1 rounded-md border p-3 text-left transition-colors ${
+      title={
+        isDeviation
+          ? `Deviation off the ${line.parentLineId} mainline at ply ${line.deviationFromMove ?? '?'}`
+          : undefined
+      }
+      className={`group flex shrink-0 flex-col gap-1 rounded-md border p-3 text-left transition-colors ${
+        isDeviation ? 'min-w-[180px] max-w-[240px] ml-3 border-l-2 border-l-violet-400/60 dark:border-l-violet-300/40' : 'min-w-[200px] max-w-[260px]'
+      } ${
         active
           ? 'border-accent bg-accent/10 shadow-sm'
           : 'border-border bg-elevated hover:bg-muted'
@@ -697,11 +705,56 @@ function LineCard({ line, active, progress, onSelect }: LineCardProps): ReactNod
         </span>
       </div>
       <p className="text-[11px] leading-snug text-muted-foreground">{line.description}</p>
-      <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-        {line.nodes.length - 1} ply
-      </p>
+      <div className="mt-1 flex items-center gap-2">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {line.nodes.length - 1} ply
+        </p>
+        {isDeviation && (
+          <span
+            className="rounded-sm bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-900/40 dark:text-violet-200"
+            aria-label="Deviation off the parent mainline"
+          >
+            Deviation
+          </span>
+        )}
+      </div>
     </button>
   );
+}
+
+/**
+ * Order a course's lines so each deviation (`parentLineId` set) sits
+ * immediately after its parent, with non-deviation lines (mainlines)
+ * keeping their authored order. Stable: lines that aren't deviations
+ * stay in the order they were declared in lessons.ts; deviations are
+ * grouped under their parent in their authored order. If a deviation
+ * names a missing parent (shouldn't happen) we append it at the end so
+ * it's still reachable.
+ */
+function orderLinesForPicker(lines: OpeningLine[]): OpeningLine[] {
+  const childrenByParent = new Map<string, OpeningLine[]>();
+  const orphanedDeviations: OpeningLine[] = [];
+  const mainlines: OpeningLine[] = [];
+  const known = new Set(lines.map((l) => l.id));
+  for (const l of lines) {
+    if (l.parentLineId === undefined) {
+      mainlines.push(l);
+    } else if (known.has(l.parentLineId)) {
+      const arr = childrenByParent.get(l.parentLineId) ?? [];
+      arr.push(l);
+      childrenByParent.set(l.parentLineId, arr);
+    } else {
+      orphanedDeviations.push(l);
+    }
+  }
+  const out: OpeningLine[] = [];
+  for (const m of mainlines) {
+    out.push(m);
+    const kids = childrenByParent.get(m.id);
+    if (kids) out.push(...kids);
+  }
+  out.push(...orphanedDeviations);
+  return out;
 }
 
 // ───── Course detail (header + tabs + mode body) ─────────────────────────
@@ -778,7 +831,9 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
     [repertoire.id, activeLine, refreshStats],
   );
 
-  // [/] keyboard shortcuts to cycle lines.
+  // [/] keyboard shortcuts to cycle lines. Uses the picker order so a
+  // deviation's siblings are reached in the same order they're rendered
+  // (mainline → its deviations → next mainline → its deviations …).
   useEffect(() => {
     if (!course || course.lines.length < 2) return;
     const onKey = (e: KeyboardEvent) => {
@@ -786,10 +841,11 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
       if (e.target && (e.target as HTMLElement).tagName === 'INPUT') return;
       if (e.key !== '[' && e.key !== ']') return;
       e.preventDefault();
-      const idx = course.lines.findIndex((l) => l.id === activeLineId);
+      const ordered = orderLinesForPicker(course.lines);
+      const idx = ordered.findIndex((l) => l.id === activeLineId);
       const next = e.key === ']' ? idx + 1 : idx - 1;
-      const wrapped = ((next % course.lines.length) + course.lines.length) % course.lines.length;
-      setActiveLineId(course.lines[wrapped]!.id);
+      const wrapped = ((next % ordered.length) + ordered.length) % ordered.length;
+      setActiveLineId(ordered[wrapped]!.id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -838,13 +894,23 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <h3 className="font-display text-sm font-semibold">Lines</h3>
             <p className="text-[11px] text-muted-foreground">
-              {course.lines.length === 1
-                ? '1 line'
-                : <>{course.lines.length} lines · use <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">[</kbd> / <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">]</kbd> to switch</>}
+              {(() => {
+                const mainlineCount = course.lines.filter((l) => l.parentLineId === undefined).length;
+                const deviationCount = course.lines.length - mainlineCount;
+                if (course.lines.length === 1) return '1 line';
+                const base = deviationCount > 0
+                  ? `${mainlineCount} mainline${mainlineCount === 1 ? '' : 's'} · ${deviationCount} deviation${deviationCount === 1 ? '' : 's'}`
+                  : `${mainlineCount} lines`;
+                return (
+                  <>
+                    {base} · use <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">[</kbd> / <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">]</kbd> to switch
+                  </>
+                );
+              })()}
             </p>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {course.lines.map((l) => {
+            {orderLinesForPicker(course.lines).map((l) => {
               const progress = lineProgressRows.find((r) => r.lineId === l.id);
               return (
                 <LineCard

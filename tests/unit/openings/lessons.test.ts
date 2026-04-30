@@ -129,6 +129,86 @@ describe('OPENING_COURSES — coverage of curated openings', () => {
   });
 });
 
+describe('OPENING_COURSES — deviation-line schema (Phase 1b)', () => {
+  it("every deviation's parentLineId references a sibling line in the same course", () => {
+    const broken: { courseId: string; lineId: string; parentId: string }[] = [];
+    for (const course of Object.values(OPENING_COURSES)) {
+      const lineIds = new Set(course.lines.map((l) => l.id));
+      for (const line of course.lines) {
+        if (line.parentLineId === undefined) continue;
+        if (!lineIds.has(line.parentLineId)) {
+          broken.push({ courseId: course.openingId, lineId: line.id, parentId: line.parentLineId });
+        }
+      }
+    }
+    expect(broken, `dangling parentLineId:\n${broken.map((b) => `  ${b.courseId}/${b.lineId} -> ${b.parentId}`).join('\n')}`).toHaveLength(0);
+  });
+
+  it('deviationFromMove is set iff parentLineId is set', () => {
+    const broken: { courseId: string; lineId: string; reason: string }[] = [];
+    for (const course of Object.values(OPENING_COURSES)) {
+      for (const line of course.lines) {
+        const hasParent = line.parentLineId !== undefined;
+        const hasPly = line.deviationFromMove !== undefined;
+        if (hasParent !== hasPly) {
+          broken.push({
+            courseId: course.openingId,
+            lineId: line.id,
+            reason: `parentLineId=${String(hasParent)} but deviationFromMove=${String(hasPly)}`,
+          });
+        }
+        if (hasPly && (line.deviationFromMove! < 1 || line.deviationFromMove! >= line.nodes.length)) {
+          broken.push({
+            courseId: course.openingId,
+            lineId: line.id,
+            reason: `deviationFromMove=${line.deviationFromMove} is outside node range [1, ${line.nodes.length - 1}]`,
+          });
+        }
+      }
+    }
+    expect(broken, `bad deviation metadata:\n${broken.map((b) => `  ${b.courseId}/${b.lineId}: ${b.reason}`).join('\n')}`).toHaveLength(0);
+  });
+
+  it('a deviation shares its parent\'s lead-up plies up to the branching ply', () => {
+    const broken: { courseId: string; lineId: string; ply: number; reason: string }[] = [];
+    for (const course of Object.values(OPENING_COURSES)) {
+      const byId = new Map(course.lines.map((l) => [l.id, l] as const));
+      for (const line of course.lines) {
+        if (line.parentLineId === undefined) continue;
+        const parent = byId.get(line.parentLineId);
+        if (!parent) continue; // separate test catches this
+        const branchPly = line.deviationFromMove ?? 0;
+        // Plies 1..branchPly-1 must match exactly between parent and child.
+        for (let i = 1; i < branchPly; i++) {
+          const a = parent.nodes[i];
+          const b = line.nodes[i];
+          if (!a || !b || a.san !== b.san || a.fen !== b.fen) {
+            broken.push({
+              courseId: course.openingId,
+              lineId: line.id,
+              ply: i,
+              reason: `lead-up ply ${i} differs from parent ${parent.id} (parent san=${a?.san}, child san=${b?.san})`,
+            });
+            break;
+          }
+        }
+        // Branching ply must DIFFER (otherwise it's not really a deviation).
+        const a = parent.nodes[branchPly];
+        const b = line.nodes[branchPly];
+        if (a && b && a.san === b.san) {
+          broken.push({
+            courseId: course.openingId,
+            lineId: line.id,
+            ply: branchPly,
+            reason: `deviationFromMove=${branchPly} but san matches parent (${a.san}) — not a real branch`,
+          });
+        }
+      }
+    }
+    expect(broken, `deviation lead-up mismatches:\n${broken.map((b) => `  ${b.courseId}/${b.lineId} ply ${b.ply}: ${b.reason}`).join('\n')}`).toHaveLength(0);
+  });
+});
+
 describe('lookups', () => {
   it('courseFor returns the matching course', () => {
     expect(courseFor('italian-white')?.title).toBe('Italian Game');
