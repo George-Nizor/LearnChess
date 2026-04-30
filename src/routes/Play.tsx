@@ -263,7 +263,7 @@ export function Play() {
   );
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
+    <div className="flex h-full flex-col overflow-hidden px-6 py-3">
       {engineError && (
         <div role="alert" className="mb-2 shrink-0 rounded-md border border-border bg-muted p-3 text-sm">
           <strong>Engine:</strong> {engineError}
@@ -273,7 +273,7 @@ export function Play() {
         </div>
       )}
 
-      <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[auto_minmax(0,1fr)_360px]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[auto_minmax(0,1fr)_minmax(360px,480px)]">
         {showEvalBar ? (
           <div
             aria-label={`Evaluation ${evalLabel}`}

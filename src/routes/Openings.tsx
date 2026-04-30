@@ -262,7 +262,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
   // the board's pixel position fixed across modes — no chrome above
   // or below it shifts the board on tab switch.
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
       <div className="cg-board-fit">
         <Chessground config={cgConfig} />
       </div>
@@ -575,7 +575,7 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
     sans.map((s, i) => (i % 2 === 0 ? `${i / 2 + 1}. ${s.san}` : s.san)).join(' ');
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
       <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
         <div className="cg-board-fit">
           <Chessground config={cgConfig} />
@@ -652,7 +652,7 @@ function ExploreView({ repertoire, line }: { repertoire: Repertoire; line: Openi
     animation: { enabled: false, duration: 0 },
   };
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
       <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
         <div className="cg-board-fit">
           <Chessground config={cgConfig} />
@@ -1463,7 +1463,7 @@ export function Openings(): ReactNode {
     <div
       className={
         inCourse
-          ? 'mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3'
+          ? 'flex h-full flex-col overflow-hidden px-6 py-3'
           : 'mx-auto h-full max-w-7xl overflow-y-auto px-6 py-6'
       }
     >

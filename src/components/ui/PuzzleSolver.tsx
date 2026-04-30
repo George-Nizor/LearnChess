@@ -337,7 +337,7 @@ export function PuzzleSolver({
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

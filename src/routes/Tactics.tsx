@@ -493,12 +493,12 @@ export function Tactics() {
   })();
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
+    <div className="flex h-full flex-col overflow-hidden px-6 py-3">
       {/* Same grid template as Play / Analysis — empty placeholder
           slot (the eval-bar slot on Play/Analysis), board column, and
           the 360 px sidebar. The board lands at identical pixel coords
           across the three routes. */}
-      <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[24px_minmax(0,1fr)_360px]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[24px_minmax(0,1fr)_minmax(360px,480px)]">
         {/* Eval-bar placeholder — keeps board's x position identical to
             Play / Analysis. Tactics has no eval bar so the slot is empty. */}
         <div className="hidden md:block" aria-hidden />

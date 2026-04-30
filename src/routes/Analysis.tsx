@@ -656,7 +656,7 @@ export function Analysis() {
   const noHistoryYet = movePairs.length === 0;
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
+    <div className="flex h-full flex-col overflow-hidden px-6 py-3">
       {engineError && (
         <div role="alert" className="mb-2 shrink-0 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
           <strong>Engine error:</strong> {engineError}
@@ -676,7 +676,7 @@ export function Analysis() {
         of <main>, so on narrow viewports the board shrinks rather than
         pushing the page off screen.
       */}
-      <div className="grid h-full min-h-0 grid-cols-1 gap-6 lg:grid-cols-[auto_minmax(0,1fr)_360px]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-6 lg:grid-cols-[auto_minmax(0,1fr)_minmax(360px,480px)]">
         {/* Eval bar — taller than before so it visually anchors the board. */}
         <div
           aria-label={`Evaluation ${evalLabel}`}

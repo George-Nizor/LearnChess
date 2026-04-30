@@ -202,7 +202,7 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
   // board, sidebar holds the tutor avatar, controls strip, and
   // streaming bubbles.
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
       <div className="cg-board-fit">
         <Chessground config={cgConfig} />
       </div>
@@ -555,7 +555,7 @@ function ExploreView({ position }: { position: EndgamePosition }): ReactNode {
     animation: { enabled: false, duration: 0 },
   };
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(240px,480px)]">
       <div className="cg-board-fit">
         <Chessground config={cgConfig} />
       </div>
@@ -736,7 +736,7 @@ export function Endgames(): ReactNode {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
+    <div className="flex h-full flex-col overflow-hidden px-6 py-3">
       {/* Single slim control strip — same pattern as Openings'
           CourseControlBar: back arrow + course/position label, position
           popover, mode tabs, progress chips. */}
