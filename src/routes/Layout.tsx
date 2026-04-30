@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Logo } from '@/components/ui/Logo';
 import { PageShell } from '@/components/ui/PageShell';
 import { PageTransition } from '@/components/ui/PageTransition';
+import { SetupBanner } from '@/components/ui/SetupBanner';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { SettingsIcon } from '@/components/ui/ChessIcons';
 import { PageMetaContext, type PageMetaContextValue } from './page-meta';
@@ -37,6 +38,7 @@ export function Layout() {
   return (
     <PageMetaContext.Provider value={ctxValue}>
       <div className="surface-transition flex h-screen flex-col">
+        <SetupBanner />
         <header className="border-b border-border bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
           <PageShell pad={false} className="flex items-center justify-between gap-4 py-3">
             {/* Brand: logo + display-font wordmark. The whole pair links to

@@ -62,10 +62,26 @@ export class PuzzlesDb {
       const res = await fetch(PUZZLES_URL);
       if (!res.ok) {
         throw new Error(
-          `puzzles.db fetch failed: HTTP ${res.status}. Run \`npm run build:puzzles\` after vendoring.`,
+          `puzzles.db fetch failed: HTTP ${res.status}. Run \`npm run setup\` (or \`npm run build:puzzles\`) to populate it.`,
         );
       }
       const buf = new Uint8Array(await res.arrayBuffer());
+
+      // SQLite databases start with the magic string "SQLite format 3\0"
+      // (16 bytes). Vite's dev server falls back to index.html for missing
+      // routes, so a fresh clone without the puzzle DB sees a 200 response
+      // whose body is HTML, which then fails deeper inside sqlite3 with a
+      // cryptic SQLITE_NOTADB. Sniff the magic bytes here so we can throw
+      // a clear, actionable error before sqlite even gets the buffer.
+      const isSqlite = buf.length >= 16
+        && buf[0] === 0x53 && buf[1] === 0x51 && buf[2] === 0x4c
+        && buf[3] === 0x69 && buf[4] === 0x74 && buf[5] === 0x65;
+      if (!isSqlite) {
+        throw new Error(
+          'puzzles.db is missing or malformed. Run `npm run setup` (or `npm run build:puzzles`) to download + ingest the Lichess puzzle dump (~280 MB → ~55 MB DB). Subsequent boots are fast.',
+        );
+      }
+
       const db = new sqlite3.oo1.DB(':memory:', 'c');
       const dbHandle = (db as unknown as { pointer: number }).pointer;
       const p = sqlite3.wasm.allocFromTypedArray(buf);

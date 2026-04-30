@@ -317,12 +317,29 @@ function writeDb(selected: SurvivorRow[]): { themesCount: number; openingTagsCou
   return { themesCount: themeIdCache.size, openingTagsCount: openingTagCache.size };
 }
 
-async function main(): Promise<void> {
-  if (!existsSync(SOURCE_CSV_ZST)) {
-    console.error(`[build-puzzles] source not found: ${SOURCE_CSV_ZST}`);
-    console.error('Download with: curl -L -o .cache/lichess_db_puzzle.csv.zst https://database.lichess.org/lichess_db_puzzle.csv.zst');
-    process.exit(1);
+const PUZZLE_DUMP_URL = 'https://database.lichess.org/lichess_db_puzzle.csv.zst';
+
+async function ensureSourceDownloaded(): Promise<void> {
+  if (existsSync(SOURCE_CSV_ZST)) return;
+  console.log(`[build-puzzles] source not found at ${SOURCE_CSV_ZST}`);
+  console.log(`[build-puzzles] downloading from ${PUZZLE_DUMP_URL} (~280 MB, may take a few minutes)…`);
+  mkdirSync(dirname(SOURCE_CSV_ZST), { recursive: true });
+  const res = await fetch(PUZZLE_DUMP_URL);
+  if (!res.ok) {
+    throw new Error(`[build-puzzles] download failed: HTTP ${res.status} ${res.statusText}`);
   }
+  if (!res.body) {
+    throw new Error('[build-puzzles] download failed: empty response body');
+  }
+  const { createWriteStream } = await import('node:fs');
+  const { pipeline } = await import('node:stream/promises');
+  const fileStream = createWriteStream(SOURCE_CSV_ZST);
+  await pipeline(Readable.fromWeb(res.body as never), fileStream);
+  console.log(`[build-puzzles] saved to ${SOURCE_CSV_ZST}`);
+}
+
+async function main(): Promise<void> {
+  await ensureSourceDownloaded();
 
   const sourceStat = statSync(SOURCE_CSV_ZST);
   console.log(`[build-puzzles] source: ${SOURCE_CSV_ZST} (${(sourceStat.size / 1024 / 1024).toFixed(1)} MB)`);

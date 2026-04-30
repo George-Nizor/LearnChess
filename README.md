@@ -43,10 +43,14 @@ square-highlight overlays in Learn mode.
 git clone <this repo>
 cd learnchess
 npm install
-npm run vendor:engine        # downloads Stockfish 16 wasm (~85 MB) into public/
-npm run build:puzzles        # downloads + ingests Lichess puzzle CSV (~280 MB → 55 MB DB)
+npm run setup                # downloads Stockfish (~85 MB) + Lichess puzzle CSV (~280 MB → 55 MB DB) + sound packs + piece sets. Idempotent; run once per fresh clone.
 npm run dev                  # http://localhost:5173
 ```
+
+If you skip `setup`, the dev server still boots — but Play, Analysis,
+Tactics, and the Openings → Puzzles tab are unavailable until the
+engine and puzzle DB are vendored. A banner at the top of the app
+nudges you with the exact command to run.
 
 The engine + puzzle DB are NOT committed to the repo (they're in
 `.gitignore` — too large, regenerable). The two `vendor:`/`build:`
