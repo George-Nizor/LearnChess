@@ -10,6 +10,7 @@ import { nextCard } from '@/puzzles/scheduler';
 import { INITIAL_USER_RATING, ratingBand, updateRating, type RatingState } from '@/puzzles/rating';
 import { GROUP_LABELS, groupThemes, labelFor, type ThemeGroup } from '@/puzzles/themes';
 import {
+  getAttemptedPuzzleIds,
   getRecentPuzzleAttempts,
   getUserRating,
   recordPuzzleAttempt,
@@ -99,6 +100,13 @@ export function Tactics() {
   const recordedRef = useRef(false);
   const queueRef = useRef<PuzzleRow[]>([]);
   const themeTriggerRef = useRef<HTMLButtonElement>(null);
+  /*
+   * Set of every puzzle id the user has ever attempted. Hydrated once from
+   * IndexedDB on mount, then mutated synchronously inside `recordAttempt`
+   * so the next `db.query()` call sees the just-played puzzle excluded.
+   * Mirrors Lichess's `round` collection lookup in PuzzleSelector.scala.
+   */
+  const attemptedIdsRef = useRef<Set<string>>(new Set());
 
   // Load puzzle DB once
   useEffect(() => {
@@ -138,7 +146,7 @@ export function Tactics() {
     );
   }, [searchParams, setSearchParams]);
 
-  // Hydrate persisted user rating + session counters
+  // Hydrate persisted user rating + session counters + attempted-ids set
   useEffect(() => {
     void getUserRating('tactics').then((r) => {
       if (r) setUserRatingState({ rating: r.rating, rd: r.rd });
@@ -146,6 +154,9 @@ export function Tactics() {
     void getRecentPuzzleAttempts(50).then((arr) => {
       setRecentAttempts(arr.length);
       setSolvedCount(arr.filter((a) => a.solved).length);
+    });
+    void getAttemptedPuzzleIds().then((ids) => {
+      attemptedIdsRef.current = new Set(ids);
     });
   }, []);
 
@@ -173,6 +184,7 @@ export function Tactics() {
         ratingMin: f.ratingMin,
         ratingMax: f.ratingMax,
         limit: 25,
+        excludeIds: attemptedIdsRef.current,
       });
     }
     const next = queueRef.current.shift();
@@ -223,6 +235,7 @@ export function Tactics() {
         timeMs: Date.now() - currentActive.startedAt,
         hintsUsed: currentActive.hintsUsed,
       });
+      attemptedIdsRef.current.add(currentActive.row.id);
       setRecentAttempts((n) => n + 1);
       if (solved) setSolvedCount((n) => n + 1);
     },
@@ -252,7 +265,7 @@ export function Tactics() {
       if (!expected) return;
       const expectedFrom = expected.slice(0, 2);
       const expectedTo = expected.slice(2, 4);
-      const promotion = isPromotion(game, from, to) ? 'q' : 'q';
+      const promotion = 'q' as const; // auto-queen; underpromote picker deferred
 
       if (from !== expectedFrom || to !== expectedTo) {
         // Allow any move that delivers checkmate as the final move
@@ -480,12 +493,12 @@ export function Tactics() {
   })();
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden px-6 py-3">
+    <div className="flex h-full flex-col overflow-hidden px-6 py-3">
       {/* Same grid template as Play / Analysis — empty placeholder
           slot (the eval-bar slot on Play/Analysis), board column, and
           the 360 px sidebar. The board lands at identical pixel coords
           across the three routes. */}
-      <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[24px_minmax(0,1fr)_360px]">
+      <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[24px_minmax(0,1fr)_minmax(360px,480px)]">
         {/* Eval-bar placeholder — keeps board's x position identical to
             Play / Analysis. Tactics has no eval bar so the slot is empty. */}
         <div className="hidden md:block" aria-hidden />

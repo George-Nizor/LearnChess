@@ -168,10 +168,10 @@ export const ENDGAMES: EndgamePosition[] = [
     description: 'Push the pawn supported by the knight; trade the knight for any black resource if needed.',
   },
 
-  // K + B + P vs K — wrong colour bishop
+  // K + B + P vs K — wrong colour bishop (black to move variant)
   {
-    id: 'kbp-wrong-colour',
-    name: 'Bishop + rook-pawn — wrong colour bishop',
+    id: 'kbp-wrong-colour-black',
+    name: 'Bishop + rook-pawn — wrong colour bishop (black to move)',
     fen: '7k/8/8/8/8/8/P7/4KB2 b - - 0 1',
     side: 'b',
     goal: 'draw',

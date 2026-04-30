@@ -282,7 +282,7 @@ function QuestionCard({ question, answered, stats, onSubmit, onNext }: QuestionC
   }, [question, answered, onSubmit]);
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
       {/* Click-overlay wrapper. Treated as a button because it captures
           click events to register the answer. Keyboard users can still
           answer via the multi-choice path; a click-to-square chess board

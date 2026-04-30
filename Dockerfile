@@ -55,8 +55,14 @@ COPY . .
 # of CPU + 280 MB download). If iterating on the image during dev,
 # Docker layer caching keeps both unless package.json or scripts/
 # change.
+#
+# NODE_OPTIONS bumps the heap to 4 GB for build:puzzles — fzstd is
+# pure-JS and decompresses the 280 MB zstd dump into a single in-memory
+# buffer (~1.5 GB uncompressed CSV) before parsing. The default ~2 GB
+# heap is right at the edge, so we lift it to avoid intermittent OOMs
+# on memory-constrained CI runners and home-lab Docker hosts.
 RUN npm run vendor:engine
-RUN npm run build:puzzles
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build:puzzles
 
 # Production Vite build into /app/dist
 RUN npm run build

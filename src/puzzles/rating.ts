@@ -42,7 +42,9 @@ export function updateRating(
   outcome: 0 | 0.5 | 1,
 ): RatingState {
   const g = gFn(puzzleRd);
-  const e = expectedScore(user.rating, puzzleRating, puzzleRd);
+  const eRaw = expectedScore(user.rating, puzzleRating, puzzleRd);
+  // Clamp e away from 0/1 to avoid dSquared → Infinity at extreme rating gaps
+  const e = Math.max(1e-6, Math.min(1 - 1e-6, eRaw));
   const dSquared = 1 / (Q * Q * g * g * e * (1 - e));
   const denom = 1 / (user.rd * user.rd) + 1 / dSquared;
 

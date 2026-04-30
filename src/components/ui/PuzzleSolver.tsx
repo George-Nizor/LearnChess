@@ -185,7 +185,7 @@ export function PuzzleSolver({
       if (!expected) return;
       const expectedFrom = expected.slice(0, 2);
       const expectedTo = expected.slice(2, 4);
-      const promotion = isPromotion(game, from, to) ? 'q' : 'q';
+      const promotion = 'q' as const; // auto-queen; underpromote picker deferred
 
       if (from !== expectedFrom || to !== expectedTo) {
         // Mate-in-1 alternative-route allowance
@@ -337,7 +337,7 @@ export function PuzzleSolver({
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

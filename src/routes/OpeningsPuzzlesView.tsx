@@ -33,6 +33,7 @@ import { PuzzlesDb, type PuzzleRow } from '@/puzzles/db';
 import { labelFor } from '@/puzzles/themes';
 import { openingSlugPrefix } from '@/openings/slug';
 import { PuzzleSolver } from '@/components/ui/PuzzleSolver';
+import { getAttemptedPuzzleIds } from '@/persistence/db';
 import type { Repertoire } from '@/openings';
 import type { Config } from 'chessground/config';
 import { Chess } from 'chess.js';
@@ -72,6 +73,11 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
   // Solving mode owns its own queue. Loaded fresh from the DB each
   // time we enter solve mode, replenished automatically when empty.
   const queueRef = useRef<PuzzleRow[]>([]);
+  // Set of every puzzle id the user has ever attempted, hydrated from
+  // IndexedDB on mount. Passed to db.query() so the user keeps seeing
+  // fresh material — same mechanism as Tactics.tsx, mirrors Lichess's
+  // PuzzleSelector.scala `round` lookup.
+  const attemptedIdsRef = useRef<Set<string>>(new Set());
 
   // Load DB once; re-run the slug-scoped query whenever the active
   // repertoire (and therefore slug) changes.
@@ -85,6 +91,9 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
       });
+    void getAttemptedPuzzleIds().then((ids) => {
+      if (!cancelled) attemptedIdsRef.current = new Set(ids);
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -93,7 +102,13 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
     // 50-row sample drives both the theme histogram and the 6 visible
     // cards. Keeping the sample bounded prevents the renderer from
     // booting 50 chessgrounds (we slice to 6 below).
-    const rows = db.query({ openingTags: [slugLike], limit: 50, ratingMin: 600, ratingMax: 3200 });
+    const rows = db.query({
+      openingTags: [slugLike],
+      limit: 50,
+      ratingMin: 600,
+      ratingMax: 3200,
+      excludeIds: attemptedIdsRef.current,
+    });
     setSample(rows);
     setTotalCount(db.countForOpening(slugLike));
   }, [db, slugLike]);
@@ -193,9 +208,16 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
           limit: 25,
           ratingMin: 600,
           ratingMax: 3200,
+          excludeIds: attemptedIdsRef.current,
         });
       }
-      return queueRef.current.shift() ?? null;
+      const next = queueRef.current.shift() ?? null;
+      // Optimistically mark as attempted so the same puzzle won't reappear
+      // if we re-query in this session before recordPuzzleAttempt's IDB
+      // write lands. The IDB write inside PuzzleSolver remains the
+      // cross-session source of truth.
+      if (next) attemptedIdsRef.current.add(next.id);
+      return next;
     };
     return (
       <div className="flex h-full min-h-0 flex-col gap-2">

@@ -77,7 +77,7 @@ interface LearnChessDB extends DBSchema {
     value: UserRating;
   };
   endgameAttempts: {
-    key: string;
+    key: number; // autoIncrement
     value: EndgameAttempt;
     indexes: { 'by-positionId': string; 'by-attemptedAt': number };
   };
@@ -126,6 +126,18 @@ export function getDB(): Promise<IDBPDatabase<LearnChessDB>> {
 export async function recordPuzzleAttempt(attempt: PuzzleAttempt): Promise<void> {
   const db = await getDB();
   await db.put('puzzleAttempts', attempt);
+}
+
+/**
+ * Every puzzle id the user has ever attempted (whether solved or not).
+ * Used by the Tactics selector to skip already-played puzzles, mirroring
+ * Lichess's `round` lookup in PuzzleSelector.scala. Loaded once into an
+ * in-memory Set at session start; the Set is then mutated as the user
+ * plays.
+ */
+export async function getAttemptedPuzzleIds(): Promise<string[]> {
+  const db = await getDB();
+  return db.getAllKeys('puzzleAttempts');
 }
 
 export async function getRecentPuzzleAttempts(limit = 50): Promise<PuzzleAttempt[]> {

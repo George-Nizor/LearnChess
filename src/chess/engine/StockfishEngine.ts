@@ -152,7 +152,7 @@ export class StockfishEngine {
    * its bestmove before starting the new search. Concurrent calls serialise.
    */
   async search(fen: string, opts: AnalyzeOptions, onInfo?: (info: UciInfo) => void): Promise<SearchResult> {
-    if (!this.worker) throw new Error('Engine not initialised');
+    if (!this.worker || this.status === 'error') throw new Error('Engine not initialised');
 
     if (this.currentRun) await this.cancel();
 
@@ -167,6 +167,7 @@ export class StockfishEngine {
   }
 
   destroy(): void {
+    this.currentRun?.reject(new Error('Engine destroyed'));
     this.worker?.terminate();
     this.worker = null;
     this.status = 'idle';
