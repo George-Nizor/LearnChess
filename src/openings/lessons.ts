@@ -97,6 +97,18 @@ export interface LessonNode {
  * One distinct variation within an opening (e.g. "Giuoco Piano",
  * "Najdorf"). Lines are the unit users select and progress through
  * — chessreps' "X/N lines" semantics.
+ *
+ * Lines may optionally be "deviations" — a sibling branch off another
+ * line at a specific ply, modelling what to do when the opponent plays
+ * something other than the parent's mainline move. Deviation lines:
+ *   - Carry the same lead-up plies as their parent up to `deviationFromMove`,
+ *     then branch with the alternative move.
+ *   - Are surfaced indented under their parent in the line picker.
+ *   - Drill at a lower weight than mainlines so the user doesn't see them
+ *     constantly — see `LESSON_DEVIATION_EDGE_WEIGHT` in `import.ts`.
+ *   - Were authored to lift the inline "Common deviations: ..." prose into
+ *     navigable, drillable units (Phase 1b of the engagement-first design;
+ *     see `docs/OPENING_EXPANSION_PLAN.md`).
  */
 export interface OpeningLine {
   /** Unique within an opening, e.g. 'giuoco-piano'. */
@@ -107,6 +119,19 @@ export interface OpeningLine {
   description: string;
   /** Sequenced lesson nodes for this line. Always starts with the intro node. */
   nodes: LessonNode[];
+  /**
+   * If set, this line is a "deviation" — a sibling branch off the parent
+   * line at the ply named in `deviationFromMove`. The line picker renders
+   * it indented under its parent with a small badge.
+   */
+  parentLineId?: string;
+  /**
+   * 1-based ply (= node index) at which the deviation branches from the
+   * parent line. Set iff `parentLineId` is set. Diagnostic only — the
+   * UI doesn't enforce this against the parent's actual moves; it's a
+   * label like "deviation at White's 6th".
+   */
+  deviationFromMove?: number;
 }
 
 export interface OpeningCourse {
@@ -145,6 +170,10 @@ interface LineSpec {
   intro: string;
   /** Ordered list of moves for this line. */
   moves: MoveSpec[];
+  /** See `OpeningLine.parentLineId`. */
+  parentLineId?: string;
+  /** See `OpeningLine.deviationFromMove`. */
+  deviationFromMove?: number;
 }
 
 function buildLine(spec: LineSpec): OpeningLine {
@@ -156,7 +185,14 @@ function buildLine(spec: LineSpec): OpeningLine {
     game.move(m.san);
     nodes.push({ fen: normFen(game.fen()), san: m.san, text: m.text });
   }
-  return { id: spec.id, name: spec.name, description: spec.description, nodes };
+  return {
+    id: spec.id,
+    name: spec.name,
+    description: spec.description,
+    nodes,
+    ...(spec.parentLineId !== undefined ? { parentLineId: spec.parentLineId } : {}),
+    ...(spec.deviationFromMove !== undefined ? { deviationFromMove: spec.deviationFromMove } : {}),
+  };
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -1977,6 +2013,402 @@ export const OPENING_COURSES: Record<string, OpeningCourse> = {
           { san: 'a5', text: "**7...a5** — fixing White's a-pawn AND preparing the knight reroute **…Na6-c7-e6** (or **…Na6-b4** kicking the c3-knight). You've reached the main deep Classical Pirc tabiya. Black's full plan from here: **…Na6** (heading to c7 or b4), **…Nc7** (eyeing the **e6** square as a launching point), then **…Bg4** (pinning f3 to remove a defender of d4 and e5), and finally **…e5** cracking the centre. Two squares to remember: **b4** (where our knight or pawn lands as a wedge in White's queenside) and **e5** (the central break that opens the long diagonal for our g7-bishop). Common deviations: if White plays **8.h3** preventing **…Bg4** before it lands, switch the move-order to **…Na6** + **…Nc7** + **…e5** without the bishop pin — slower but still solid. If White plays **8.Bg5** pinning our knight, kick with **…h6 9.Bh4 Nh5** rerouting the knight to **f4** with active counterplay. If White plays **8.Re1** quietly waiting for us to commit, our plan is unchanged: **…Na6 → …Nc7 → …Bg4 → …e5** in that order. The middlegame here is a marathon: White typically plays **Re1, Be3, Qd2, Rad1**, and we manoeuvre patiently. Whoever finds the right moment for their break wins. The Pirc deep tabiya rewards players who like long-term plans and slow piece improvement over fireworks." },
         ],
       }),
+
+      // ────────────────────────────────────────────────────────────────
+      // DEVIATION LINES (Phase 1b — engagement-first design).
+      //
+      // Each deviation lifts a "Common deviations: ..." callout from one
+      // of the parent tabiya summaries above into its own navigable,
+      // drillable line. Authoring rules:
+      //   - Lead-up plies match the parent up to `deviationFromMove`.
+      //   - The deviation move is the FIRST move that differs from the
+      //     parent (always a White move in the Pirc, since the parent
+      //     deviations are all White-side sidelines).
+      //   - 1-3 plies of response/setup follow, ending in a tabiya
+      //     summary node with structured section markers ("Black's
+      //     plan:" / "Two key squares:") so the prose parser still
+      //     produces structured sections.
+      //   - Description starts with "Deviation: ..." so the line picker
+      //     shows the family at a glance even without the indent.
+      //   - Intro starts with "Let's learn" (content-audit constraint).
+      // ────────────────────────────────────────────────────────────────
+
+      // ── Pirc Classical deviations (parent: pirc-classical, branch ply 11)
+      buildLine({
+        id: 'pirc-classical-dev-h3',
+        name: 'Classical — 6.h3 prophylactic',
+        description: "Deviation: White plays 6.h3 first (preparing Be3 without …Bg4). Same plan, no panic.",
+        parentLineId: 'pirc-classical',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays the prophylactic **6.h3** instead of castling. The idea is to prepare **Be3** without allowing **…Bg4** pinning the f3-knight later — small annoyance, no real threat. Our reply: keep the same Classical Pirc plan with **…c6** + **…b5**, but accept that the **Bg4** pin is off the menu. The **g7-bishop** still rules the long diagonal and the queenside attack still rolls.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — White's classical opening. We're heading for the Pirc structure." },
+          { san: 'd6', text: "**1...d6** — flexible Pirc/Modern/Philidor first move, opening the c8-bishop's diagonal." },
+          { san: 'd4', text: "**2.d4** — White grabs the second central square, exactly the big-centre target we want." },
+          { san: 'Nf6', text: "**2...Nf6** — attacks e4 and forces White to commit defensively." },
+          { san: 'Nc3', text: "**3.Nc3** — defends e4, the standard Classical Pirc continuation." },
+          { san: 'g6', text: "**3...g6** — preparing the fianchetto, the signature Pirc move." },
+          { san: 'Nf3', text: "**4.Nf3** — Classical setup, slow positional plan from White." },
+          { san: 'Bg7', text: "**4...Bg7** — long-diagonal warrior, defending the king and pressing the queenside." },
+          { san: 'Be2', text: "**5.Be2** — modest development. White's plan is patient slot-everyone-into-place chess." },
+          { san: 'O-O', text: "**5...O-O** — king to safety behind the fianchetto." },
+          { san: 'h3', text: "**6.h3** — the deviation! Instead of castling, White spends a tempo to prevent **…Bg4** pinning the f3-knight later. It's prophylactic — no immediate threat, just a small future-proofing move. Don't panic, and don't change plans: **…c6** is still the right answer." },
+          { san: 'c6', text: "**6...c6** — exactly as in the mainline. Our plan is unchanged: prepare **…b5** for queenside expansion. The lost **Bg4** pin is annoying, but White also spent a tempo on h3, so the trade is roughly even." },
+          { san: 'O-O', text: "**7.O-O** — White finally castles, the calm phase ends. Now we continue our standard Pirc setup with the queen's-knight reroute coming next." },
+          { san: 'Nbd7', text: "**7...Nbd7** — knight to d7, the standard Classical Pirc square. You've reached the main **6.h3** deviation tabiya. Black's plan from here: **…b5** queenside expansion, then **…Bb7** (the c8-bishop's natural square once the b-file pawn is in place), then **…b4** kicking the c3-knight. Two key squares: **b4** (queenside wedge) and **e5** (central break). The **6.h3** insertion costs White a tempo but doesn't change the underlying plan — patient queenside manoeuvring still wins half the games at our level. Modern theory rates this equal at master level; the prophylactic move is more popular than it deserves to be." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-classical-dev-be3',
+        name: 'Classical — 6.Be3 hybrid',
+        description: "Deviation: White plays 6.Be3, hinting at 150-Attack ideas. Switch to the queenside-race plan.",
+        parentLineId: 'pirc-classical',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays **6.Be3** instead of the calm **6.O-O**. The bishop on e3 hints at a 150-Attack-flavoured plan: White wants **Qd2** + maybe **O-O-O** + **Bh6** trading our key bishop. Our antidote: switch to the queenside-race plan from the 150 Attack lesson — **…c6** preparing **…b5** as fast as possible. White hasn't committed to long castling yet, but we play as if they will, because the tempo cost is small if they don't.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Nf3', text: "**4.Nf3** — Classical Pirc." },
+          { san: 'Bg7', text: "**4...Bg7** — long-diagonal bishop." },
+          { san: 'Be2', text: "**5.Be2** — modest development." },
+          { san: 'O-O', text: "**5...O-O** — king to safety." },
+          { san: 'Be3', text: "**6.Be3** — the deviation! White hints at a 150-Attack scheme: **Be3 + Qd2 + Bh6** trading our key dark-square bishop, possibly followed by **O-O-O** and a kingside pawn storm. The tell is on move 6 — the calm Classical Pirc would just play **6.O-O**, so this **Be3** is a commitment to something sharper. We respond as if White IS castling long: race on the queenside." },
+          { san: 'c6', text: "**6...c6** — first move of the queenside race, just like in the 150 Attack lesson. We prepare **…b5** to bash open the queenside before White's long-castled king is safe." },
+          { san: 'Qd2', text: "**7.Qd2** — White confirms the 150-Attack-flavoured plan: queen on d2 supports **Bh6** AND prepares **O-O-O**. The race is officially on; we have to keep moving." },
+          { san: 'b5', text: "**7...b5** — pawn-storm launched. You've reached the main **6.Be3 hybrid** deviation tabiya. Black's plan from here: continue **…b4** kicking the c3-knight (which is pinned to defending e4, so it has to move and can't go anywhere good), then **…Nbd7** + **…Bb7** completing development, then **…a5-a4-a3** if White hasn't broken through yet. Two key squares: **b4** (the wedge that breaks White's queenside) and **f7** (where White's attack tries to land if the king gets stuck on g8). Tactical theme: the racing arithmetic is identical to the pure 150 Attack — count tempi to the enemy king, and don't be the player who finishes attacking second. Modern theory rates this hybrid setup slightly better for Black than the pure 150 because White lost a tempo on Be3 before committing to long castling." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-classical-dev-a4',
+        name: 'Classical — 6.a4 stops …b5',
+        description: "Deviation: White plays 6.a4 preventing our queenside push. Transpose to the deep central plan.",
+        parentLineId: 'pirc-classical',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays **6.a4** stopping our queenside expansion before it starts. The pawn on a4 freezes our **…b5** plan — we'd need to play **…a6** first, lose a tempo, and even then **…b5** could be met by **axb5**. Better to switch to the deep Classical plan instead: **…a5** fixing White's a-pawn AND preparing the knight reroute **…Na6-c7-e6**, then central counterplay with **…Bg4** and **…e5**.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Nf3', text: "**4.Nf3** — Classical Pirc." },
+          { san: 'Bg7', text: "**4...Bg7** — long-diagonal bishop." },
+          { san: 'Be2', text: "**5.Be2** — modest development." },
+          { san: 'O-O', text: "**5...O-O** — king to safety." },
+          { san: 'a4', text: "**6.a4** — the deviation! White prevents our queenside push **…b5** before we can play it. This forces a STRATEGIC decision: do we play **…a6** preparing **…b5** anyway (slow, and White can still meet **…b5** with **axb5**), or change plans entirely toward central counterplay? The mainline answer is the central plan: **…a5** + **…Na6-c7** + **…Bg4** + **…e5** — the same recipe as the Classical Pirc deep plan." },
+          { san: 'a5', text: "**6...a5** — fixing White's a-pawn (it can't push to a5 now without losing) AND preparing **…Na6** rerouting the knight to **c7** or **b4**. We've turned White's prophylactic into a strategic concession: a-file pawns are now locked, and we play for central breaks instead." },
+          { san: 'h3', text: "**7.h3** — White inserts a useful prophylactic, preventing our future **…Bg4** pin. The position is now very similar to the deep Classical: slow positional manoeuvring, both sides choosing pawn breaks." },
+          { san: 'Na6', text: "**7...Na6** — knight to a6, heading for **c7** (eyeing **e6** as a launching point) or **b4** (kicking the c3-knight if we get the chance). You've reached the main **6.a4** deviation tabiya. Black's plan from here: **…Nc7** completing the reroute, then **…Bd7** (or **…Bf5** if White ever plays **e5**), then **…e5** cracking the centre. Two key squares: **b4** (where the knight or pawn lands as a wedge) and **e5** (the central break that opens the long diagonal for our g7-bishop). Modern theory rates this as comfortable for Black: White's a4 push fixed the queenside but did nothing to prevent the central plan. The opening rewards patient manoeuvring over memorisation in this line." },
+        ],
+      }),
+
+      // ── Austrian Attack deviations (parent: pirc-austrian, branch ply 11)
+      buildLine({
+        id: 'pirc-austrian-dev-be2',
+        name: 'Austrian — 6.Be2 calmer',
+        description: "Deviation: White plays the modest 6.Be2 instead of 6.Bd3. No Greek Gift — develop and break.",
+        parentLineId: 'pirc-austrian',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays the calmer **6.Be2** instead of the aggressive **6.Bd3** in the Austrian Attack. The **Bd3** version threatens the Greek Gift sacrifice **Bxh7+** in many sub-variations; **Be2** is a quieter setup — just complete development and play for central control. We respond identically to the **6.Bd3** mainline: **…Nc6** pressuring **d4**, then **…Bg4** + **…e5** cracking the centre at our leisure, no defensive distractions.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'f4', text: "**4.f4** — Austrian Attack, the third central pawn." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto, pointing at d4." },
+          { san: 'Nf3', text: "**5.Nf3** — White completes development before pushing." },
+          { san: 'O-O', text: "**5...O-O** — king to safety before counter-attacking." },
+          { san: 'Be2', text: "**6.Be2** — the deviation! White picks a quieter square for the bishop than the aggressive **Bd3**. The Greek-Gift threat **Bxh7+** disappears (the bishop on e2 doesn't aim at h7), so we don't need to keep defensive resources on the kingside — we can attack the centre at full speed." },
+          { san: 'Nc6', text: "**6...Nc6** — pressuring d4 immediately, the principled active reply. Same as the **6.Bd3** mainline; the calmer bishop placement doesn't change our agenda." },
+          { san: 'Be3', text: "**7.Be3** — White completes development and defends d4 a second time. The position is now classic Austrian: White holds the big centre, Black plans to crack it open." },
+          { san: 'Bg4', text: "**7...Bg4** — pinning the f3-knight, the standard Pirc tactical break-prep. With **f3** pinned, White's d4-pawn is defended only by **Be3** + the queen, so our coming **…e5** or **…Nxd4** is now realistic. You've reached the main **6.Be2** deviation tabiya. Black's plan from here: **…e5** cracking the centre (after preparation if needed), or **…Nxd4** if White's defenders ever leave. Two key squares: **d4** (the weak link in White's pawn chain) and **e5** (the breakpoint that opens lines to our g7-bishop). Modern theory rates this slightly favourable for Black — the calmer **Be2** is theoretically inferior to the aggressive **Bd3** at master level, though club players score better with it because there are fewer sharp lines to remember." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-austrian-dev-e5',
+        name: 'Austrian — 6.e5 immediate',
+        description: "Deviation: White pushes 6.e5 right away. Retreat with …Nfd7, take the c-file open.",
+        parentLineId: 'pirc-austrian',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays the immediate **6.e5** instead of completing development first. The push attacks our **f6-knight** and tries to grab huge space, but it's premature — White's pieces aren't ready to support the advance, and after the inevitable exchanges the c-file opens for our rook. The recipe: retreat with **…Nfd7** (NOT **…Nh5** which leaves the knight stranded), then take back when White trades on d6, then play **…c5** or **…Nc6** to open lines.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'f4', text: "**4.f4** — Austrian Attack." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto." },
+          { san: 'Nf3', text: "**5.Nf3** — completing development." },
+          { san: 'O-O', text: "**5...O-O** — king to safety." },
+          { san: 'e5', text: "**6.e5** — the deviation! White pushes the e-pawn immediately, attacking our f6-knight and trying to grab huge space. It's premature — White's pieces aren't coordinated to support the advance, and the inevitable trade on d6 opens the c-file for our pieces. We retreat correctly." },
+          { san: 'Nfd7', text: "**6...Nfd7** — knight retreats to d7, NOT to h5. From d7 it can re-enter the game via **…Nb6** or **…Nc5** later, and crucially it doesn't get stranded on the rim. The rule of thumb: when White overextends with a premature pawn push, retreat to the SAFEST square, not the most active one — we'll have time to develop after White's centre crumbles." },
+          { san: 'exd6', text: "**7.exd6** — White trades on d6, accepting the c-file opening because the alternative (**7.Bd3** + **8.h4**?) leaves the **e5-pawn** under fire from **…Nb6** and **…Nc6**. After this trade White's centre is half-dissolved." },
+          { san: 'cxd6', text: "**7...cxd6** — recapturing with the c-pawn, opening the c-file for our rook. You've reached the main **6.e5 immediate** deviation tabiya. Black's plan from here: **…Nc6** + **…Nb6** (or **…Nc5**) re-routing the knights, then **…Be6** + **…Rc8** activating the rook on the open c-file, then **…d5** breaking the remaining centre. Two key squares: **c-file** (the lane our rook owns) and **d5** (Black's central break that finishes off the position). Modern theory rates this clearly favourable for Black at all levels — **6.e5** is one of those moves that LOOKS dangerous but is actually a positional concession. Punish it." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-austrian-dev-be3',
+        name: 'Austrian — 6.Be3 hybrid',
+        description: "Deviation: White mixes Austrian and 150-Attack with 6.Be3. Race on the queenside.",
+        parentLineId: 'pirc-austrian',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays the hybrid **6.Be3** in the Austrian — Austrian setup (with **f4** already on the board) plus 150-Attack ideas (**Be3 + Qd2** preparing **O-O-O**). It's a kitchen-sink attack: White wants both the kingside pawn storm AND the long-castled-king threat. Our antidote: race on the queenside with **…b5** as fast as possible, exactly as in the pure 150 Attack lesson.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'f4', text: "**4.f4** — Austrian Attack." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto." },
+          { san: 'Nf3', text: "**5.Nf3** — White completes development." },
+          { san: 'O-O', text: "**5...O-O** — king to safety." },
+          { san: 'Be3', text: "**6.Be3** — the deviation! White combines the Austrian's **f4** with the 150 Attack's **Be3**, planning **Qd2 + O-O-O** with both a kingside pawn storm AND a long-castled-king attack. The kitchen-sink. We respond as if White is castling long: race on the queenside as fast as possible." },
+          { san: 'Nc6', text: "**6...Nc6** — pressuring d4 first, the same active reply as the standard Austrian. The knight on c6 also supports the coming **…b5** push by reserving the b-file." },
+          { san: 'Qd2', text: "**7.Qd2** — White confirms the long-castle plan: queen on d2 supports **Bh6** (trading our key bishop) AND prepares **O-O-O**. The race is on." },
+          { san: 'b5', text: "**7...b5** — pawn-storm launched, the only correct move in the position. You've reached the main **6.Be3 hybrid Austrian** deviation tabiya. Black's plan from here: **…b4** kicking the c3-knight, then **…Nbd7** + **…Bb7** + **…a5-a4-a3** continuing the queenside avalanche. Two key squares: **b4** (the queenside wedge) and **f7** (White's target if our king gets stuck on g8). Tactical theme: the racing arithmetic favours whoever attacks faster — count tempi rigorously. Modern theory rates this hybrid as roughly equal at master level: White's setup is more flexible than the pure 150 but slower than the pure Austrian, so the pluses cancel out." },
+        ],
+      }),
+
+      // ── 150 Attack deviations (parent: pirc-150-attack, branch ply 11)
+      buildLine({
+        id: 'pirc-150-dev-bh6',
+        name: '150 Attack — 6.Bh6 immediate',
+        description: "Deviation: White grabs the g7-bishop early with 6.Bh6 (before O-O-O). Trade and counter-attack.",
+        parentLineId: 'pirc-150-attack',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays **6.Bh6** immediately, before castling long. The idea is to grab our key dark-square bishop on g7 before we have time to defend it. The catch: White's queen ends up on h6 awkwardly (after the trade), and crucially White's king is still on **e1** — not yet castled — so our queenside counter-attack arrives at a king without a safe haven. The recipe: trade, then play **…b5** as in the mainline.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Be3', text: "**4.Be3** — the 150 Attack setup." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto, accepting that **Bh6** trades may come." },
+          { san: 'Qd2', text: "**5.Qd2** — preparing O-O-O + Bh6." },
+          { san: 'c6', text: "**5...c6** — preparing **…b5**, our queenside-race opener." },
+          { san: 'Bh6', text: "**6.Bh6** — the deviation! White grabs our g7-bishop before castling long, trying to weaken our dark squares before our counter-attack arrives. The hidden cost: White's king is still on **e1**, and the queen is about to commit to **h6**, so our queenside attack lands on an UN-castled king. Trade and continue with the plan." },
+          { san: 'Bxh6', text: "**6...Bxh6** — taking the bishop. We've lost the dark-square diagonal but gained the bishop pair (briefly), and White's queen is forced to recapture on a passive square." },
+          { san: 'Qxh6', text: "**7.Qxh6** — White recaptures with the queen on h6. The queen is awkwardly placed: it's far from the queenside (where our attack is coming) and doesn't pressure anything immediately. White still needs to castle, which costs another tempo." },
+          { san: 'b5', text: "**7...b5** — pawn-storm launched, on schedule. You've reached the main **6.Bh6 immediate** deviation tabiya. Black's plan from here: **…b4** kicking the c3-knight, then **…Nbd7** + **…Bb7** + **…Qa5** (eyeing the queenside) — and we may even get to attack White's king before it castles. Two key squares: **b4** (the wedge) and **e1** (where White's stranded king lives until they finally castle, with reduced kingside defence because the queen on h6 is so far away). Tactical theme: in many lines we get a winning attack with a sacrifice on **c3** opening the b-file with discovered attack on the e1-king. Modern theory considers **6.Bh6** dubious specifically because of the unclaimed king; it's a confused attack rather than a coordinated one." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-150-dev-f3',
+        name: '150 Attack — 6.f3 setup',
+        description: "Deviation: White plays 6.f3 preparing g4-h4-h5 without castling first. Race anyway.",
+        parentLineId: 'pirc-150-attack',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays **6.f3** preparing **g4-h4-h5** without castling first. The idea is to launch the kingside pawn storm immediately and only castle (queenside) once everything is in motion. The catch: White's king is still on e1, so our queenside attack arrives even faster than in the mainline. Recipe: just play **…b5** as planned — the race begins before White's king has even moved.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Be3', text: "**4.Be3** — 150 Attack setup." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto." },
+          { san: 'Qd2', text: "**5.Qd2** — preparing O-O-O." },
+          { san: 'c6', text: "**5...c6** — first move of the race." },
+          { san: 'f3', text: "**6.f3** — the deviation! White prepares **g4-h4-h5** without castling first, trying to launch the kingside pawn storm immediately. The cost: White's king stays on **e1** longer, so our queenside attack lands on an even more vulnerable target than in the mainline. Don't change plans — keep racing." },
+          { san: 'b5', text: "**6...b5** — pawn-storm launched, the right move regardless of White's variant move-order. The queenside race is officially on." },
+          { san: 'h4', text: "**7.h4** — White starts the kingside push as planned. The next moves on both sides are forced by the race: White advances h-pawn, we advance b-pawn, both sides aim to crack the enemy king first." },
+          { san: 'Nbd7', text: "**7...Nbd7** — knight to d7, the standard re-routing square. From d7 the knight can join the queenside attack via **…Nb6** + **…a5-a4** or stay central to support **…b4** + **…c5** breaks. You've reached the main **6.f3 setup** deviation tabiya. Black's plan from here: **…b4** kicking the c3-knight, then **…a5-a4** continuing the avalanche, then **…Bb7** + **…Qa5** completing the attack. Two key squares: **b4** (queenside wedge) and **e1** (the un-castled White king). Tactical theme: in many lines White can't safely castle (queenside is opening too fast, kingside is open from h4) and gets caught in the centre. Modern theory rates this slightly favourable for Black at master level — **6.f3** is theoretically inferior to **6.O-O-O** because it delays castling without enough compensation." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-150-dev-h4',
+        name: '150 Attack — 6.h4 lunge',
+        description: "Deviation: White lunges 6.h4 with king still on e1. Counter on the queenside; the centre opens.",
+        parentLineId: 'pirc-150-attack',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays the rare **6.h4** with the king still on e1. It's the most aggressive move-order in the 150 Attack family: skip preparation and just hurl the h-pawn at us. The catch: White has no safe haven for the king — castling kingside is suicide (h-file already opening), and queenside takes another move. Recipe: **…b5** + **…Nbd7** + **…b4** as planned. The race is unbalanced in our favour because White's king is more exposed than ever.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Be3', text: "**4.Be3** — 150 Attack setup." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto." },
+          { san: 'Qd2', text: "**5.Qd2** — preparing castling." },
+          { san: 'c6', text: "**5...c6** — opening the queenside race." },
+          { san: 'h4', text: "**6.h4** — the deviation! White skips preparation and lunges immediately on the kingside, intending **h5** next move to crack open our castled king's shelter. The catastrophic cost: White's king has no safe square. Kingside castling is impossible (h-file is opening for OUR rook after **…hxg5** trades), queenside castling needs another two tempi (**Qd2** is in, but no **Be3-something** prep done), and the centre is too open for the king to stay home. Punish it." },
+          { san: 'b5', text: "**6...b5** — same plan, different speed. We launch the queenside attack while White's king has nowhere to go. Don't be tempted to defend the kingside (**…h5** stopping h5 only weakens our position) — the right answer is offence." },
+          { san: 'h5', text: "**7.h5** — White presses on with the lunge, hoping to break our kingside before our queenside attack lands. Black's coming **…Nxh5** is fine: the knight isn't trapped, and we keep development rolling." },
+          { san: 'Nxh5', text: "**7...Nxh5** — accepting the pawn. The knight on h5 isn't trapped (it can return to **f6** or hop to **f4**), and we're a clean pawn ahead. You've reached the main **6.h4 lunge** deviation tabiya. Black's plan from here: **…b4** kicking the c3-knight, then **…Nbd7** + **…Bb7** + **…Qa5** completing the queenside attack while staying up a pawn. Two key squares: **b4** (queenside wedge) and **f4** (the **h5-knight's** outpost if it pivots there). Tactical theme: White's **h4-h5** lunge gives up the pawn for nothing — there's no follow-up because White's pieces aren't coordinated. Modern theory considers this a clear mistake at master level; Black wins this position with normal play." },
+        ],
+      }),
+
+      // ── Byrne deviations (parent: pirc-byrne, branch ply 11)
+      buildLine({
+        id: 'pirc-byrne-dev-bh4',
+        name: 'Byrne — 6.Bh4 keeping pin',
+        description: "Deviation: White keeps the pin with 6.Bh4. Hit with …g5 + …Nh5 — bishop pair plus an outpost.",
+        parentLineId: 'pirc-byrne',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White retreats the bishop to **Bh4** keeping the pin alive instead of going to **Be3**. The idea is to maintain the threat of **Bxf6** trading our knight for the bishop. Our reply is the classical anti-pin move: **…g5** kicking the bishop, then **…Nh5** rerouting the knight to **f4** as an outpost. We win the bishop pair and gain active piece play.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Bg5', text: "**4.Bg5** — Byrne System provocation." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto, ignoring the provocation." },
+          { san: 'Qd2', text: "**5.Qd2** — preparing Bh6 trade." },
+          { san: 'h6', text: "**5...h6** — kicking, when it serves us." },
+          { san: 'Bh4', text: "**6.Bh4** — the deviation! White retreats the bishop to h4 keeping the f6-knight pinned, threatening **Bxf6** trades AND the coming **Nxg5** if we ever try **…g5**. Our reply has been known since the 1960s: **…g5** anyway, breaking the pin and chasing the bishop further." },
+          { san: 'g5', text: "**6...g5** — kicking the bishop, accepting the slight kingside weakening because the bishop pair AND active piece play more than compensate. The position now sharpens: White can only retreat to **g3** (where it's slightly worse) or sacrifice with **Nxg5** (which is unsound)." },
+          { san: 'Bg3', text: "**7.Bg3** — bishop to g3, the principled retreat. The bishop is now passively placed but still alive; **Nxg5** would lose to **…hxg5 Bxg5 Bxd4** winning the central pawn." },
+          { san: 'Nh5', text: "**7...Nh5** — knight to h5, eyeing **f4** as an outpost. You've reached the main **6.Bh4 keeping pin** deviation tabiya. Black's plan from here: **…Nxg3** trading the bishop pair if we want simplification (since the bishop on g3 is passive anyway), or **…Nf4** taking the outpost and keeping the bishop pair (the pair is genuinely valuable in the resulting open positions). Two key squares: **f4** (the knight's outpost) and **e5** (the central break that opens lines for our **g7-bishop** + bishop pair). Modern theory rates this as comfortable for Black: the bishop pair plus the f4-outpost outweighs the slight kingside weakening from **…g5**. Common Byrne players panic when seeing **6.Bh4**; the refutation is simple if you know it." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-byrne-dev-bxf6',
+        name: 'Byrne — 6.Bxf6 immediate trade',
+        description: "Deviation: White trades immediately with 6.Bxf6. Recapture with the BISHOP, not the e-pawn.",
+        parentLineId: 'pirc-byrne',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays the immediate trade **6.Bxf6** instead of retreating the bishop. The idea: damage our pawn structure or remove our key knight. Our critical decision is HOW to recapture: **…Bxf6** keeping the dark-square diagonal alive (correct), or **…exf6** doubling pawns and giving up the bishop's lane (wrong). Most Byrne newcomers play **…exf6** by reflex; the lesson is recapture with the BISHOP.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Bg5', text: "**4.Bg5** — Byrne System provocation." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto, ignoring the provocation." },
+          { san: 'Qd2', text: "**5.Qd2** — preparing the Bh6 trade plan." },
+          { san: 'h6', text: "**5...h6** — kicking, when it serves us." },
+          { san: 'Bxf6', text: "**6.Bxf6** — the deviation! White trades the bishop for our knight immediately, accepting the bishop pair concession in exchange for damaging our structure (or so they hope). The CRITICAL question is how we recapture: with the bishop (correct) or with the e-pawn (wrong)." },
+          { san: 'Bxf6', text: "**6...Bxf6** — recapturing with the BISHOP, not the e-pawn. This keeps our pawn structure intact AND keeps the dark-square diagonal alive (the bishop on f6 controls g7-h8-d8 etc.). The wrong move **6...exf6** doubles pawns on the f-file, gives up the long diagonal, and stops the **g7-bishop** scheme entirely — a triple concession that loses the position by move 12. Recapture with the bishop, always." },
+          { san: 'O-O-O', text: "**7.O-O-O** — White castles long, committing to the kingside pawn storm plan. The position is now a fairly standard 150-Attack-flavoured Pirc but with traded dark-square bishops on both sides — the dynamics simplify, and the pawn race is the main story." },
+          { san: 'O-O', text: "**7...O-O** — we castle short. You've reached the main **6.Bxf6 immediate trade** deviation tabiya. Black's plan from here: **…c6** + **…b5** queenside expansion (same as the mainline 150 Attack plan), then **…Bb7** completing development. Two key squares: **b4** (the queenside wedge) and **dark squares around White's king** (where our remaining dark-square bishop on f6 still presses). Modern theory rates this trade as a small concession for both sides; the position is roughly equal. The lesson is purely about correct recapture — get that wrong and you've lost the game in one move." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-byrne-dev-bf4',
+        name: 'Byrne — 6.Bf4 London-flavoured',
+        description: "Deviation: White switches to a London-style 6.Bf4 setup. Standard Classical Pirc plan applies.",
+        parentLineId: 'pirc-byrne',
+        deviationFromMove: 11,
+        intro: "Let's learn what to do when White plays **6.Bf4** instead of **6.Be3** or **6.Bh4**. The bishop on f4 turns the position into a London-flavoured Pirc — calm, positional, no forcing moves. Our recipe: just play the standard Classical Pirc plan with **…O-O** + **…c6** + **…b5**. The Byrne-specific trade-or-pin tension has dissolved, so we're back to a normal middlegame.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Bg5', text: "**4.Bg5** — Byrne System provocation." },
+          { san: 'Bg7', text: "**4...Bg7** — fianchetto." },
+          { san: 'Qd2', text: "**5.Qd2** — preparing the Bh6 trade plan." },
+          { san: 'h6', text: "**5...h6** — kicking, when it serves us." },
+          { san: 'Bf4', text: "**6.Bf4** — the deviation! White switches the bishop to f4, a London-flavoured setup. The Byrne's pin/trade/provocation tension is now gone — White is just playing for slow positional pressure on the queenside. We respond with our normal Classical Pirc plan." },
+          { san: 'O-O', text: "**6...O-O** — we castle, the standard reply when White's setup turns calm. Our king is safe behind the fianchetto, and we can now plan the queenside expansion at our leisure." },
+          { san: 'O-O-O', text: "**7.O-O-O** — White castles queenside, committing to the kingside pawn storm. The pawn race plan is back on, just with a slightly differently-placed dark-square bishop — the **Bf4** is more passive than **Be3** would be, so White's attack is slightly slower than usual." },
+          { san: 'c6', text: "**7...c6** — first move of our queenside race. You've reached the main **6.Bf4 London-flavoured** deviation tabiya. Black's plan from here: **…b5** + **…b4** (kicking the c3-knight), then **…Nbd7** + **…Bb7** + **…Qa5** completing the queenside attack. Two key squares: **b4** (queenside wedge) and **f4** (where the bishop is more passive than usual — we may even target it later with **…e5** at the right moment). Modern theory rates this as comfortable for Black — the **Bf4** placement gives up some attacking potential vs **Be3**, and the resulting position is roughly equal at master level." },
+        ],
+      }),
+
+      // ── Deep Plan deviations (parent: pirc-classical-deep, branch ply 15)
+      buildLine({
+        id: 'pirc-deep-dev-h3',
+        name: 'Deep Plan — 8.h3 prophylactic',
+        description: "Deviation: White plays 8.h3 stopping …Bg4. Slower plan: knight reroute first, then …e5.",
+        parentLineId: 'pirc-classical-deep',
+        deviationFromMove: 15,
+        intro: "Let's learn what to do when White plays the prophylactic **8.h3** in the deep Classical Pirc. The idea is to stop our **…Bg4** pin before it lands, removing one of our key pieces from the central-break preparation. Our antidote: switch the move-order. Play **…Na6** (heading to c7 or b4) FIRST, then **…Nc7** + **…Bd7** completing development without the bishop pin, then **…e5** when the moment is right.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Nf3', text: "**4.Nf3** — Classical Pirc." },
+          { san: 'Bg7', text: "**4...Bg7** — long-diagonal bishop." },
+          { san: 'Be2', text: "**5.Be2** — modest development." },
+          { san: 'O-O', text: "**5...O-O** — king to safety." },
+          { san: 'O-O', text: "**6.O-O** — White castles, calm phase ends." },
+          { san: 'c6', text: "**6...c6** — the signature deep Pirc plan." },
+          { san: 'a4', text: "**7.a4** — White stops …b5 prophylactically." },
+          { san: 'a5', text: "**7...a5** — fixing White's a-pawn, switching to the central plan." },
+          { san: 'h3', text: "**8.h3** — the deviation! White prevents **…Bg4** before it lands, removing the bishop pin from our planned setup. We can't get the standard **…Bg4 + …e5** combo, so we change the move-order: knight reroute first, then central break later." },
+          { san: 'Na6', text: "**8...Na6** — knight to a6, heading for **c7** (eyeing **e6**) or **b4** (kicking the c3-knight). You've reached the main **8.h3 prophylactic** deviation tabiya. Black's plan from here: **…Nc7** completing the reroute, then **…Bd7** (since **…Bg4** is off the menu) + **…Re8** centralising the rook, then **…e5** cracking the centre when White commits queens or rooks elsewhere. Two key squares: **b4** (the wedge) and **e5** (the central break that opens the long diagonal for our **g7-bishop**). Modern theory rates this slightly worse for Black than the **…Bg4** mainline (we lost a tempo of pressure on the f3-knight) but still roughly equal — White also spent **8.h3** which contributes nothing offensive. The plan is the same; the move-order is the answer." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-deep-dev-bg5',
+        name: 'Deep Plan — 8.Bg5 pin',
+        description: "Deviation: White pins with 8.Bg5. Kick with …h6 → …Nh5, reroute knight to f4.",
+        parentLineId: 'pirc-classical-deep',
+        deviationFromMove: 15,
+        intro: "Let's learn what to do when White plays **8.Bg5** pinning our **f6-knight** in the deep Classical Pirc. The idea is to threaten **Bxf6** trades or restrict our piece play. Our reply is the classical anti-pin recipe: **…h6** kicking the bishop, then **9.Bh4 Nh5** rerouting the knight to **f4** with active counterplay. We get the bishop pair AND the f4-outpost.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Nf3', text: "**4.Nf3** — Classical Pirc." },
+          { san: 'Bg7', text: "**4...Bg7** — long-diagonal bishop." },
+          { san: 'Be2', text: "**5.Be2** — modest development." },
+          { san: 'O-O', text: "**5...O-O** — king to safety." },
+          { san: 'O-O', text: "**6.O-O** — White castles." },
+          { san: 'c6', text: "**6...c6** — deep Pirc opener." },
+          { san: 'a4', text: "**7.a4** — prophylactic." },
+          { san: 'a5', text: "**7...a5** — fixing the a-pawn, going central." },
+          { san: 'Bg5', text: "**8.Bg5** — the deviation! White pins our **f6-knight**, threatening **Bxf6** trades. The knight is restricted, but we have a known antidote that wins the bishop pair AND a kingside outpost." },
+          { san: 'h6', text: "**8...h6** — kicking the bishop, accepting the slight kingside weakening because what we get in return (bishop pair, outpost, active piece play) is far more valuable. You've reached the main **8.Bg5 pin** deviation tabiya. Black's plan from here: White retreats with **Bh4** keeping the pin, we play **…Nh5** rerouting to **f4** as an outpost (or **…g5 + …Nh5** if we want to chase the bishop further), then **…Nf4** taking the outpost, then **…e5** cracking the centre. Two key squares: **f4** (the knight's outpost — a kingside dark-square dominator) and **e5** (the central break). Modern theory rates this as comfortable for Black: the bishop pair plus the f4-outpost outweighs the **…h6** weakening, and **8.Bg5** is generally considered an inaccurate try at the deep tabiya level." },
+        ],
+      }),
+      buildLine({
+        id: 'pirc-deep-dev-re1',
+        name: 'Deep Plan — 8.Re1 wait',
+        description: "Deviation: White plays the patient 8.Re1. Plan unchanged: …Na6 → …Nc7 → …Bg4 → …e5.",
+        parentLineId: 'pirc-classical-deep',
+        deviationFromMove: 15,
+        intro: "Let's learn what to do when White plays the patient **8.Re1** in the deep Classical Pirc. The rook on e1 supports any future **e4-e5** push and waits for us to commit. There's no immediate threat — White is asking us to make the first move, knowing we have to. Our recipe: stick to the plan exactly. **…Na6 → …Nc7 → …Bg4 → …e5** in that order, and let White react to us instead.",
+        moves: [
+          { san: 'e4', text: "**1.e4** — classical opening." },
+          { san: 'd6', text: "**1...d6** — Pirc setup." },
+          { san: 'd4', text: "**2.d4** — central grab." },
+          { san: 'Nf6', text: "**2...Nf6** — pressuring e4." },
+          { san: 'Nc3', text: "**3.Nc3** — defending e4." },
+          { san: 'g6', text: "**3...g6** — fianchetto preparation." },
+          { san: 'Nf3', text: "**4.Nf3** — Classical Pirc." },
+          { san: 'Bg7', text: "**4...Bg7** — long-diagonal bishop." },
+          { san: 'Be2', text: "**5.Be2** — modest development." },
+          { san: 'O-O', text: "**5...O-O** — king to safety." },
+          { san: 'O-O', text: "**6.O-O** — White castles." },
+          { san: 'c6', text: "**6...c6** — deep Pirc opener." },
+          { san: 'a4', text: "**7.a4** — prophylactic." },
+          { san: 'a5', text: "**7...a5** — going central." },
+          { san: 'Re1', text: "**8.Re1** — the deviation! White centralises the rook on e1, supporting a future **e4-e5** push and waiting for us to commit. Patient, no threat. We play our plan unchanged — there's nothing forcing about Re1, so why deviate from a working recipe?" },
+          { san: 'Na6', text: "**8...Na6** — knight to a6, the first move of our standard deep-Pirc plan. You've reached the main **8.Re1 wait** deviation tabiya. Black's plan from here: **…Nc7** completing the reroute, then **…Bg4** pinning the f3-knight (Re1 doesn't prevent the pin), then **…e5** cracking the centre. Two key squares: **b4** (the queenside wedge if our knight goes to b4 instead of c7) and **e5** (the central break). Modern theory rates this as roughly equal — **8.Re1** is a perfectly reasonable but not particularly testing move; the resulting middlegame favours whoever finds the right moment for their break. White's plan: **Be3 + Qd2 + Rad1** completing development; ours is the **…Na6 → …Nc7 → …Bg4 → …e5** chain. Whoever gets there first wins." },
+        ],
+      }),
+
     ],
   },
 
@@ -2312,9 +2744,12 @@ if (import.meta.vitest) {
         it(`${course.openingId}/${line.id} intro starts with "Let's learn"`, () => {
           expect(line.nodes[0]!.text.startsWith("Let's learn")).toBe(true);
         });
-        it(`${course.openingId}/${line.id} has 8-14 ply (9-15 nodes)`, () => {
+        it(`${course.openingId}/${line.id} has 8-15 ply (9-16 nodes)`, () => {
+          // Deviation lines (parentLineId set) reuse their parent's lead-up
+          // and add 1-2 plies of branched response — they can sit at the
+          // upper end. Mainlines are 9-15 nodes; deviations 9-16.
           expect(line.nodes.length).toBeGreaterThanOrEqual(9);
-          expect(line.nodes.length).toBeLessThanOrEqual(15);
+          expect(line.nodes.length).toBeLessThanOrEqual(16);
         });
         it(`${course.openingId}/${line.id} every node text is 1-4 sentences`, () => {
           for (const [i, node] of line.nodes.entries()) {
