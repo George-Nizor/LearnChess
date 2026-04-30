@@ -144,6 +144,27 @@ h3 { font-weight: 500; }
   transition-timing-function: ease;
 }
 
+/* Popover fade-in: the headless `<Popover />` uses a CSS animation
+   instead of framer-motion (which had a v12 regression where the
+   `animate` state never fired after mount, leaving the panel stuck at
+   opacity 0). 150 ms is the same speed as the previous motion config. */
+@keyframes popover-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.popover-fade {
+  animation: popover-fade-in 150ms ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .popover-fade { animation-duration: 0ms; }
+}
+
 /* Chessground board container.
    chessground inserts a `.cg-wrap` div; pieces are positioned in % of that
    wrapper. We set the wrapper to fill the host explicitly so pieces always

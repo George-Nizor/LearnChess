@@ -6,22 +6,31 @@ import { PageShell } from '@/components/ui/PageShell';
 import { PageTransition } from '@/components/ui/PageTransition';
 import { SetupBanner } from '@/components/ui/SetupBanner';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
-import { SettingsIcon } from '@/components/ui/ChessIcons';
+import {
+  SettingsIcon,
+  OpenGameIcon,
+  KingIcon,
+  MateIcon,
+  ExploreIcon,
+  KnightIcon,
+  StarIcon,
+  type ChessIconProps,
+} from '@/components/ui/ChessIcons';
 import { PageMetaContext, type PageMetaContextValue } from './page-meta';
 
 // Nav order reflects priority: learning chess (openings → endgames → tactics)
 // comes before analysis tools and free play. Dashboard sits last because it's
-// a passive view, not a primary action.
-const NAV = [
-  { to: '/openings', label: 'Openings', end: false },
-  { to: '/endgames', label: 'Endgames', end: false },
-  { to: '/tactics', label: 'Tactics', end: false },
-  { to: '/analysis', label: 'Analysis', end: false },
-  // Match both '/' and '/play' so the highlight follows the user when
-  // they land on the index OR the canonical /play URL.
-  { to: '/play', label: 'Play', end: false },
-  { to: '/dashboard', label: 'Dashboard', end: false },
-] as const;
+// a passive view, not a primary action. Each item carries an icon used by the
+// vertical rail; the label is shown as a tooltip on hover.
+type NavIcon = (props: ChessIconProps) => React.ReactNode;
+const NAV: ReadonlyArray<{ to: string; label: string; Icon: NavIcon }> = [
+  { to: '/openings', label: 'Openings', Icon: OpenGameIcon },
+  { to: '/endgames', label: 'Endgames', Icon: KingIcon },
+  { to: '/tactics', label: 'Tactics', Icon: MateIcon },
+  { to: '/analysis', label: 'Analysis', Icon: ExploreIcon },
+  { to: '/play', label: 'Play', Icon: KnightIcon },
+  { to: '/dashboard', label: 'Dashboard', Icon: StarIcon },
+];
 
 export function Layout() {
   const [subtitle, setSubtitleState] = useState<string>('');
@@ -37,64 +46,80 @@ export function Layout() {
 
   return (
     <PageMetaContext.Provider value={ctxValue}>
-      <div className="surface-transition flex h-screen flex-col">
-        <SetupBanner />
-        <header className="border-b border-border bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
-          <PageShell pad={false} className="flex items-center justify-between gap-4 py-3">
-            {/* Brand: logo + display-font wordmark. The whole pair links to
-                Play (the home/index route) for the usual nav convention. */}
+      <div className="surface-transition flex h-screen flex-row">
+        {/* Vertical icon rail — replaces the previous top header. Saves
+            ~64 px of vertical real estate so the board can be the page's
+            visual focus. Each nav item is icon-only; the label appears
+            as a tooltip on hover (browser native + the visually-hidden
+            label is still announced by screen readers). */}
+        <aside
+          aria-label="Primary navigation"
+          className="flex w-14 shrink-0 flex-col items-center gap-2 border-r border-border bg-muted/30 px-1.5 py-3 backdrop-blur"
+        >
+          {/* Brand mark — clicks to home/index. */}
+          <NavLink
+            to="/"
+            end
+            className="group flex h-10 w-10 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="LearnChess home"
+            title="LearnChess"
+          >
+            <Logo size={28} decorative />
+          </NavLink>
+
+          {/* Divider */}
+          <span aria-hidden className="my-1 h-px w-6 bg-border" />
+
+          {/* Nav items. The active state shows the amber accent, soft
+              glow ring, and slight scale-up for affordance. */}
+          <nav aria-label="Primary" className="flex flex-1 flex-col items-center gap-1">
+            {NAV.map(({ to, label, Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                title={label}
+                aria-label={label}
+                className={({ isActive }) =>
+                  `relative flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    isActive
+                      ? 'bg-accent text-accent-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`
+                }
+              >
+                <Icon size={18} />
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Divider */}
+          <span aria-hidden className="my-1 h-px w-6 bg-border" />
+
+          {/* Theme toggle + Settings — bottom of the rail. */}
+          <div className="flex flex-col items-center gap-1">
+            <ThemeToggle />
             <NavLink
-              to="/"
-              end
-              className="group inline-flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              aria-label="LearnChess home"
+              to="/settings"
+              aria-label="Settings"
+              title="Settings"
+              className={({ isActive }) =>
+                `flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                  isActive
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`
+              }
             >
-              <Logo size={32} decorative />
-              <span className="font-display text-lg font-semibold tracking-tight text-foreground">
-                LearnChess
-              </span>
+              <SettingsIcon size={18} />
             </NavLink>
+          </div>
+        </aside>
 
-            <div className="flex items-center gap-2">
-              <nav aria-label="Primary" className="flex flex-wrap gap-1">
-                {NAV.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={'end' in item ? item.end : false}
-                    className={({ isActive }) =>
-                      `rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
-                        isActive
-                          ? 'bg-accent text-accent-foreground shadow-sm'
-                          : 'text-foreground hover:scale-[1.02] hover:bg-muted'
-                      }`
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
-              </nav>
-              <div className="ml-1 flex items-center gap-1 border-l border-border pl-2">
-                <ThemeToggle />
-                <NavLink
-                  to="/settings"
-                  aria-label="Settings"
-                  title="Settings"
-                  className={({ isActive }) =>
-                    `inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-foreground transition-colors duration-200 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                      isActive ? 'bg-accent text-accent-foreground' : 'bg-elevated'
-                    }`
-                  }
-                >
-                  <SettingsIcon size={18} />
-                </NavLink>
-              </div>
-            </div>
-          </PageShell>
+        {/* Main column — banner + optional subtitle strip + route. */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <SetupBanner />
 
-          {/* Subtitle strip — slides + fades in when text changes. We key the
-              motion.div on the subtitle string so AnimatePresence can run
-              an exit on the previous one. Empty string collapses the slot. */}
+          {/* Subtitle strip — only takes space when a route sets it. */}
           <AnimatePresence initial={false}>
             {subtitle && (
               <motion.div
@@ -104,19 +129,19 @@ export function Layout() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: subtitleAnim, ease: 'easeOut' }}
-                className="border-t border-border/60 bg-background/40 py-1.5 text-xs text-muted-foreground"
+                className="shrink-0 border-b border-border/60 bg-background/40 py-1 text-xs text-muted-foreground"
               >
                 <PageShell pad={false}>{subtitle}</PageShell>
               </motion.div>
             )}
           </AnimatePresence>
-        </header>
 
-        <main className="min-h-0 flex-1">
-          <PageTransition pageKey={location.pathname}>
-            <Outlet />
-          </PageTransition>
-        </main>
+          <main className="min-h-0 flex-1">
+            <PageTransition pageKey={location.pathname}>
+              <Outlet />
+            </PageTransition>
+          </main>
+        </div>
       </div>
     </PageMetaContext.Provider>
   );

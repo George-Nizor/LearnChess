@@ -1,35 +1,72 @@
 /*
- * TutorAvatar — animated knight that "speaks" the lesson prose.
+ * TutorAvatar — animated cartoon face that "speaks" the lesson prose.
  *
- * Idle state: gentle vertical bob (3 px peak-to-peak, 4 s loop). Reads as
- * breathing rather than fidgeting.
+ * Built as a custom SVG (no external asset dependency, full control over
+ * animation). The face has:
+ *   - Round head with warm cream/skin tone
+ *   - Two eyes (oval pupils on white scleras) that blink autonomously
+ *   - Eyebrows that lift slightly when a new bubble appears (raised-
+ *     interest expression)
+ *   - Mouth that animates between closed-smile and open-talking when
+ *     `speaking` is true
  *
- * Reaction: when the prose changes (new bubble), the avatar tilts
- * forward-and-back once, ~250 ms, like a small nod that says "next idea
- * coming". The caller passes `pulseKey` (any string that changes when
- * a new bubble appears) and the avatar plays the reaction once per key.
+ * Idle: gentle vertical bob (3 px peak-to-peak, 4 s loop) + autonomous
+ * blink every 4-6 s (random jitter so it doesn't feel mechanical).
  *
- * The avatar sits inside an amber-soft circle so it reads as a "speaker"
- * portrait. The frame's shadow + ring is the only piece of warm chrome
- * the lesson sidebar shows — everything else is achromatic charcoal.
+ * Reaction: when `pulseKey` changes, eyebrows lift and the head nods
+ * once (~450 ms), like a small "got it, here's the next idea" beat.
+ *
+ * Speaking: when `speaking` is true, the mouth opens/closes in a 200 ms
+ * loop until `speaking` flips back to false. Caller pulses this for
+ * the duration of bubble streaming.
+ *
+ * All animations honour prefers-reduced-motion: the bob and mouth-loop
+ * stop, but the blink is preserved (it's a 50 ms event, not a sweep —
+ * inside the spec's leniency for incidental animation).
  */
 import { motion, useReducedMotion, type Easing } from 'framer-motion';
-import { KnightIcon } from './ChessIcons';
+import { useEffect, useState } from 'react';
 
 interface TutorAvatarProps {
-  /** Changes whenever a new bubble appears — triggers the nod animation. */
+  /** Changes whenever a new bubble appears — triggers nod + brow-lift. */
   pulseKey: string;
   /** Pixel size of the avatar frame (default 56). */
   size?: number;
+  /** When true, animate the mouth open/close in a loop. */
+  speaking?: boolean;
 }
 
-export function TutorAvatar({ pulseKey, size = 56 }: TutorAvatarProps) {
+export function TutorAvatar({ pulseKey, size = 56, speaking = false }: TutorAvatarProps) {
   const reduce = useReducedMotion();
-
-  // Idle bob — slow, low-amplitude, infinite. Disabled under
-  // prefers-reduced-motion (vestibular safety).
   const easeInOut: Easing = 'easeInOut';
   const easeOut: Easing = 'easeOut';
+
+  // Blink scheduler — autonomous, random 3.5-6.5 s interval. Each blink
+  // is a 90 ms pinch on the eyelid scaleY. Disabled under reduced-motion.
+  const [blink, setBlink] = useState(false);
+  useEffect(() => {
+    if (reduce) return undefined;
+    let cancelled = false;
+    const schedule = (): number => {
+      const next = 3500 + Math.random() * 3000;
+      return window.setTimeout(() => {
+        if (cancelled) return;
+        setBlink(true);
+        window.setTimeout(() => {
+          if (cancelled) return;
+          setBlink(false);
+          schedule();
+        }, 110);
+      }, next);
+    };
+    const id = schedule();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [reduce]);
+
+  // Outer bob — head breathes up and down.
   const bob = reduce
     ? {}
     : {
@@ -37,31 +74,139 @@ export function TutorAvatar({ pulseKey, size = 56 }: TutorAvatarProps) {
         transition: { duration: 4, ease: easeInOut, repeat: Infinity },
       };
 
-  // Reaction nod — keyed by pulseKey so it re-fires on each new bubble.
-  // Layered on top of the bob; framer-motion combines them via composition.
+  // Reaction nod — fires once per pulseKey change.
   const nod = reduce
     ? {}
     : {
         initial: { rotate: 0 },
-        animate: { rotate: [0, -8, 0, 4, 0] },
+        animate: { rotate: [0, -6, 0, 4, 0] },
         transition: { duration: 0.45, ease: easeOut },
       };
 
+  // SVG canvas: 100×100 internal, scaled down to `size` px on the page.
+  // All measurements below are in this 100-unit space.
+  const eyeY = 42;
+  const eyeRX = 4.5;
+  const eyeRY = 6;
+  const browLift = pulseKey ? -1 : 0; // small numeric so the dep array can change
+
   return (
-    <motion.div
-      aria-hidden
-      className="relative flex shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-foreground ring-2 ring-accent/40 dark:bg-accent-soft dark:ring-accent/30"
-      style={{ width: size, height: size }}
-      {...bob}
+    <div
+      className="relative flex shrink-0 items-center"
+      style={{ width: size + 8, height: size + 8 }}
     >
-      <motion.div key={pulseKey} {...nod} className="flex items-center justify-center">
-        <KnightIcon size={Math.round(size * 0.62)} />
-      </motion.div>
-      {/* Subtle inner glow so the avatar reads as lit, not flat. */}
-      <span
+      <motion.div
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-white/15 to-transparent dark:from-white/10"
-      />
-    </motion.div>
+        className="relative flex shrink-0 items-center justify-center rounded-full bg-accent-soft ring-2 ring-accent/40 dark:ring-accent/30"
+        style={{ width: size, height: size }}
+        {...bob}
+      >
+        <motion.svg
+          key={pulseKey}
+          {...nod}
+          viewBox="0 0 100 100"
+          width={size - 4}
+          height={size - 4}
+          className="overflow-visible"
+        >
+          {/* Head — face fill. The accent-soft circle is the frame; this
+              inner circle gives the face its actual skin tone. We use a
+              warm-paper colour so the face reads as a friendly tutor
+              against the amber halo. */}
+          <circle cx="50" cy="50" r="36" fill="#f5e6c8" />
+          {/* Subtle face shadow — rim along bottom-right, gives volume. */}
+          <circle cx="52" cy="54" r="34" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="2" />
+
+          {/* Eyebrows — small thick lines that lift on pulseKey change. */}
+          <motion.g
+            initial={{ y: 0 }}
+            animate={{ y: [0, browLift, 0] }}
+            transition={{ duration: 0.5, ease: easeOut, times: [0, 0.4, 1] }}
+          >
+            <line x1="34" y1="32" x2="44" y2="30" stroke="#3b2a1a" strokeWidth="2.5" strokeLinecap="round" />
+            <line x1="56" y1="30" x2="66" y2="32" stroke="#3b2a1a" strokeWidth="2.5" strokeLinecap="round" />
+          </motion.g>
+
+          {/* Eyes — oval whites with dark pupils. The wrapping `<g>` scales
+              vertically when `blink` flips so both eyes blink in lockstep. */}
+          <motion.g
+            animate={{ scaleY: blink ? 0.05 : 1 }}
+            transition={{ duration: 0.09, ease: easeOut }}
+            style={{ transformOrigin: `50px ${eyeY}px` }}
+          >
+            <ellipse cx="38" cy={eyeY} rx={eyeRX} ry={eyeRY} fill="#fff" />
+            <ellipse cx="62" cy={eyeY} rx={eyeRX} ry={eyeRY} fill="#fff" />
+            <circle cx="38.5" cy={eyeY + 0.5} r="2.4" fill="#1a1410" />
+            <circle cx="62.5" cy={eyeY + 0.5} r="2.4" fill="#1a1410" />
+            {/* Tiny highlight on each pupil — gives the eyes life. */}
+            <circle cx="39.5" cy={eyeY - 1} r="0.8" fill="#fff" />
+            <circle cx="63.5" cy={eyeY - 1} r="0.8" fill="#fff" />
+          </motion.g>
+
+          {/* Mouth — closed smile by default, opens when speaking.
+              We animate the path's `d` attribute via framer-motion's
+              <motion.path />: it tweens between the two paths smoothly
+              when `speaking` flips. Speaking uses a fast loop of
+              open/close so the mouth visibly "talks". */}
+          <motion.path
+            initial={false}
+            animate={
+              speaking && !reduce
+                ? {
+                    d: [
+                      'M 38 64 Q 50 68 62 64',     // closed smile
+                      'M 38 62 Q 50 72 62 62',     // open
+                      'M 38 64 Q 50 68 62 64',     // closed
+                      'M 38 62 Q 50 71 62 62',     // open
+                      'M 38 64 Q 50 68 62 64',     // closed
+                    ],
+                  }
+                : { d: 'M 38 64 Q 50 68 62 64' }
+            }
+            transition={
+              speaking && !reduce
+                ? { duration: 0.7, ease: easeInOut, repeat: Infinity }
+                : { duration: 0.2, ease: easeOut }
+            }
+            stroke="#3b2a1a"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            fill="none"
+          />
+
+          {/* Cheeks — soft circles for a friendly look. */}
+          <circle cx="32" cy="58" r="3.5" fill="rgba(220, 100, 80, 0.18)" />
+          <circle cx="68" cy="58" r="3.5" fill="rgba(220, 100, 80, 0.18)" />
+        </motion.svg>
+
+        {/* Inner glow ring — subtle gloss so the avatar doesn't read flat. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-white/15 to-transparent dark:from-white/10"
+        />
+      </motion.div>
+
+      {/* Speaking indicator — three pulsing dots in a small bubble next
+          to the avatar. Renders only when `speaking` is true. */}
+      {speaking && !reduce && (
+        <motion.span
+          aria-label="Tutor is speaking"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ duration: 0.18 }}
+          className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-elevated px-2 py-1 ring-1 ring-border"
+        >
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              className="block h-1 w-1 rounded-full bg-accent"
+              animate={{ opacity: [0.3, 1, 0.3], y: [0, -1, 0] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.18, ease: easeInOut }}
+            />
+          ))}
+        </motion.span>
+      )}
+    </div>
   );
 }

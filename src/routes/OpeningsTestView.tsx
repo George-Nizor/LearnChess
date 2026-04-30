@@ -279,7 +279,7 @@ function QuestionCard({ question, answered, onSubmit, onNext }: QuestionCardProp
   }, [question, answered, onSubmit]);
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
       <div className="flex min-h-0 min-w-0 flex-col items-center gap-2">
         {/* Click-overlay wrapper. Treated as a button because it
             captures click events to register the answer. Keyboard

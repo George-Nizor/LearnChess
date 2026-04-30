@@ -1,49 +1,44 @@
 /*
- * Popover — small headless popover used by the Tactics theme picker.
+ * Popover — small headless popover for dropdowns.
  *
- * Why we built our own (instead of pulling in Radix/Headless UI):
- *   - We already use framer-motion; the open/close animation is one
- *     <AnimatePresence> away.
- *   - The overhead of a fully-headless library (theming layers, portal
- *     mounting, virtualisation) is wasted on a single dropdown trigger.
- *   - Our a11y surface here is small but specific (aria-expanded,
- *     aria-controls, ESC, focus trap, click-outside), and we want to
- *     understand every line of it.
+ * Stripped-down rewrite (2026-04-30): the previous version had a
+ * click-outside handler + focus management that interacted badly with
+ * React 19 strict mode and React Router's render flow, leaving the
+ * panel closing immediately after open in some cases. This version
+ * keeps only the essentials:
+ *   - Renders into a portal on document.body so ancestor overflow
+ *     doesn't clip the panel.
+ *   - Positioned via the trigger's bounding rect (recomputed on
+ *     resize / scroll).
+ *   - ESC closes; click-outside detection is handled cooperatively
+ *     by the caller's onClose (typically via a backdrop or a "click
+ *     outside" custom hook in the future) — for now, click the
+ *     trigger again or press ESC to close.
+ *   - Trigger is rendered by the caller; this component renders ONLY
+ *     the panel.
  *
- * Behaviour:
- *   - Trigger button is rendered by the caller; this component renders
- *     ONLY the popover panel itself (positioned absolutely under the
- *     trigger) and wires up the open/close lifecycle.
- *   - When `open` flips true: the first focusable element inside the
- *     panel receives focus. Tab/Shift+Tab cycle within the panel.
- *   - ESC closes; click outside closes. The trigger ref is excluded
- *     from "outside" so the trigger's own onClick toggles cleanly.
- *
- * The caller owns:
- *   - The open state (controlled component).
- *   - The trigger button (so they can render it however they like and
- *     wire `aria-expanded` / `aria-controls` to match the panel id).
+ * Future: re-add click-outside via a backdrop overlay element rather
+ * than a global listener — sidesteps the listener-timing fragility.
  */
 import {
-  useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type RefObject,
 } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 
 interface PopoverProps<TElement extends HTMLElement = HTMLElement> {
   /** Whether the popover panel is shown. Controlled by the caller. */
   open: boolean;
-  /** Called when the popover requests dismissal (ESC, outside click, focus escape). */
+  /** Called when the popover requests dismissal (ESC, backdrop click). */
   onClose: () => void;
-  /** Ref to the button that opens this popover — needed for outside-click and
-      so focus can return to it on close. Generic over the element type so the
-      caller can pass `useRef<HTMLButtonElement>(null)` without an unsafe cast
-      (RefObject is invariant in its type parameter). */
+  /** Ref to the button that opens this popover. Used to position the
+      panel and to return focus on close. */
   triggerRef: RefObject<TElement | null>;
   /** Stable id used for the trigger's `aria-controls` and the panel's `id`. */
   panelId?: string;
@@ -67,7 +62,6 @@ export function Popover<TElement extends HTMLElement = HTMLElement>({
   className,
   'aria-label': ariaLabel,
 }: PopoverProps<TElement>) {
-  const reduce = useReducedMotion();
   const generatedId = useId();
   const panelId = externalId ?? generatedId;
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -80,8 +74,6 @@ export function Popover<TElement extends HTMLElement = HTMLElement>({
       if (e.key === 'Escape') {
         e.stopPropagation();
         onClose();
-        // Return focus to the trigger button so keyboard users don't end
-        // up on <body>.
         triggerRef.current?.focus();
       }
     };
@@ -89,37 +81,31 @@ export function Popover<TElement extends HTMLElement = HTMLElement>({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose, triggerRef]);
 
-  // Click-outside handler.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onClick = (e: MouseEvent): void => {
-      const target = e.target as Node | null;
-      if (!target) return;
-      if (panelRef.current?.contains(target)) return;
-      if (triggerRef.current?.contains(target)) return;
-      onClose();
+  // Position the panel directly under the trigger using its bounding
+  // rect. We portal the panel into <body> so it isn't clipped by any
+  // ancestor's `overflow: hidden`. Recompute on resize and scroll.
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosition(null);
+      return undefined;
+    }
+    const updatePosition = (): void => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPosition({ top: rect.bottom + 4, left: rect.left });
     };
-    // mousedown so we close before the next click event fires on something else
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, [open, onClose, triggerRef]);
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [open, triggerRef]);
 
-  // Focus the first focusable inside the panel when it opens.
-  useEffect(() => {
-    if (!open) return;
-    // Wait one frame so framer-motion has mounted the panel children.
-    const id = window.requestAnimationFrame(() => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusables = panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-      const first = focusables[0];
-      if (first) first.focus();
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [open]);
-
-  // Focus trap — Tab/Shift+Tab loop within the panel only.
-  const onKeyDownPanel = useCallback((e: ReactKeyboardEvent<HTMLDivElement>) => {
+  // Tab focus trap — Tab/Shift+Tab loop within the panel only.
+  const onKeyDownPanel = (e: ReactKeyboardEvent<HTMLDivElement>): void => {
     if (e.key !== 'Tab') return;
     const panel = panelRef.current;
     if (!panel) return;
@@ -135,38 +121,44 @@ export function Popover<TElement extends HTMLElement = HTMLElement>({
         e.preventDefault();
         last.focus();
       }
-    } else {
-      if (active === last) {
-        e.preventDefault();
-        first.focus();
-      }
+    } else if (active === last) {
+      e.preventDefault();
+      first.focus();
     }
-  }, []);
+  };
 
-  const duration = reduce ? 0 : 0.15;
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          ref={panelRef}
-          id={panelId}
-          role="dialog"
-          aria-modal="false"
-          {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}
-          onKeyDown={onKeyDownPanel}
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration, ease: 'easeOut' }}
-          className={
-            'absolute left-0 z-30 mt-1 rounded-md border border-border bg-elevated shadow-lg ' +
-            (className ?? '')
-          }
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
+  if (!open || position === null) return null;
+  return createPortal(
+    <>
+      {/* Backdrop — invisible click target. Catches clicks outside the
+          panel and closes the popover. Sits BELOW the panel (z-40 vs
+          z-50) so panel clicks aren't intercepted. */}
+      <button
+        type="button"
+        aria-label="Close popover"
+        onClick={onClose}
+        className="fixed inset-0 z-40 cursor-default bg-transparent"
+      />
+      {/* The dialog needs onKeyDown for the Tab focus trap. Lint flags
+          role="dialog" as non-interactive but a focus-trapping dialog
+          is a legitimate keyboard surface — the role is correct. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      <div
+        ref={panelRef}
+        id={panelId}
+        role="dialog"
+        aria-modal="false"
+        {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}
+        onKeyDown={onKeyDownPanel}
+        style={{ top: position.top, left: position.left }}
+        className={
+          'popover-fade fixed z-50 rounded-md border border-border bg-elevated shadow-2xl ' +
+          (className ?? '')
+        }
+      >
+        {children}
+      </div>
+    </>,
+    document.body,
   );
 }

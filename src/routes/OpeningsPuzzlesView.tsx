@@ -342,9 +342,12 @@ function PuzzleSampleCard({ row, slug }: PuzzleSampleCardProps): ReactNode {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.18 }}
-        // Cap the inline chessground width — at desktop this puts 3 cards
-        // per row comfortably inside the bubble column.
-        className="mx-auto w-[160px]"
+        // Cap the inline chessground at 160 × 160 — at desktop this puts
+        // 3 cards per row comfortably inside the bubble column. The
+        // `cg-board-fit` wrapper makes the inner board container-query
+        // size to the wrapper's bounds, so the pieces aren't clipped.
+        className="cg-board-fit mx-auto"
+        style={{ width: 160, height: 160 }}
       >
         <Chessground config={cgConfig} />
       </motion.div>

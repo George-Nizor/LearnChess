@@ -35,6 +35,7 @@ import { MiniBoardPreview } from '@/components/ui/MiniBoardPreview';
 import { LessonBubbleStream } from '@/components/ui/LessonBubbleStream';
 import { PawnSkeleton } from '@/components/ui/PawnSkeleton';
 import { TutorAvatar } from '@/components/ui/TutorAvatar';
+import { Popover } from '@/components/ui/Popover';
 import { extractVisualMarkers, parseProse } from '@/openings/proseParser';
 import {
   LearnIcon, DrillIcon, ExploreIcon, PuzzlesIcon, TestIcon,
@@ -147,6 +148,16 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
 
   const node = line.nodes[nodeIdx]!;
 
+  // "Speaking" indicator next to the tutor avatar — pulses to `true`
+  // for ~700 ms whenever the bubble stream rebuilds (new node), then
+  // fades back. Visually mirrors a chat-app typing dot.
+  const [speaking, setSpeaking] = useState(false);
+  useEffect(() => {
+    setSpeaking(true);
+    const t = window.setTimeout(() => setSpeaking(false), 700);
+    return () => window.clearTimeout(t);
+  }, [line.id, nodeIdx]);
+
   const fen = useMemo(() => {
     const game = new Chess();
     for (let i = 1; i <= nodeIdx; i++) {
@@ -247,7 +258,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
   //     scrolls if a tabiya has many sections; the page itself never
   //     scrolls.
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[auto_minmax(300px,380px)]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
       <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
         <div className="cg-board-fit">
           <Chessground config={cgConfig} />
@@ -288,7 +299,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
 
       <aside aria-live="polite" className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pr-1">
         <div className="flex shrink-0 items-center gap-3">
-          <TutorAvatar pulseKey={`${line.id}-${nodeIdx}`} size={48} />
+          <TutorAvatar pulseKey={`${line.id}-${nodeIdx}`} size={48} speaking={speaking} />
           <div className="min-w-0">
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Tutor
@@ -558,7 +569,7 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
     sans.map((s, i) => (i % 2 === 0 ? `${i / 2 + 1}. ${s.san}` : s.san)).join(' ');
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[auto_minmax(260px,320px)]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
       <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
         <div className="cg-board-fit">
           <Chessground config={cgConfig} />
@@ -635,7 +646,7 @@ function ExploreView({ repertoire, line }: { repertoire: Repertoire; line: Openi
     animation: { enabled: false, duration: 0 },
   };
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[auto_minmax(280px,360px)]">
+    <div className="grid h-full min-h-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
       <div className="flex min-h-0 min-w-0 flex-col items-center justify-start">
         <div className="cg-board-fit">
           <Chessground config={cgConfig} />
@@ -663,83 +674,7 @@ function ExploreView({ repertoire, line }: { repertoire: Repertoire; line: Openi
   );
 }
 
-// ───── Per-line picker (chessreps-style line cards) ──────────────────────
-
-interface LineCardProps {
-  line: OpeningLine;
-  active: boolean;
-  progress: LineProgress | undefined;
-  onSelect: () => void;
-}
-
-function LineCard({ line, active, progress, onSelect }: LineCardProps): ReactNode {
-  const status: 'unseen' | 'in-progress' | 'completed' =
-    progress === undefined || progress.discoveredNodeIdx <= 0
-      ? 'unseen'
-      : progress.completed
-        ? 'completed'
-        : 'in-progress';
-  const badge = status === 'completed' ? '●' : status === 'in-progress' ? '◐' : '◯';
-  const badgeTitle =
-    status === 'completed' ? 'Completed' : status === 'in-progress' ? 'In progress' : 'Not started';
-  const isDeviation = line.parentLineId !== undefined;
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={active}
-      title={
-        isDeviation
-          ? `Deviation off the ${line.parentLineId} mainline at ply ${line.deviationFromMove ?? '?'}`
-          : undefined
-      }
-      className={`group flex shrink-0 flex-col gap-0 rounded-md border px-2 py-1 text-left transition-colors ${
-        isDeviation ? 'min-w-[150px] max-w-[200px] ml-2 border-l-2 border-l-violet-400/60 dark:border-l-violet-300/40' : 'min-w-[170px] max-w-[220px]'
-      } ${
-        active
-          ? 'border-accent bg-accent/10 shadow-sm'
-          : 'border-border bg-elevated hover:bg-muted'
-      }`}
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className={`truncate text-[12px] font-semibold leading-tight ${active ? 'text-foreground' : ''}`}>{line.name}</span>
-        <span
-          aria-label={badgeTitle}
-          title={badgeTitle}
-          className={`text-[10px] ${
-            status === 'completed'
-              ? 'text-accent'
-              : status === 'in-progress'
-                ? 'text-amber-500'
-                : 'text-muted-foreground'
-          }`}
-        >
-          {badge}
-        </span>
-      </div>
-      <p
-        className="line-clamp-1 text-[10px] leading-snug text-muted-foreground"
-        title={line.description}
-      >
-        {line.description}
-      </p>
-      <div className="flex items-center gap-1.5">
-        <p className="text-[9px] uppercase tracking-wide text-muted-foreground">
-          {line.nodes.length - 1} ply
-        </p>
-        {isDeviation && (
-          <span
-            className="rounded-sm bg-violet-100 px-1 py-0 text-[8.5px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-900/40 dark:text-violet-200"
-            aria-label="Deviation off the parent mainline"
-          >
-            Dev
-          </span>
-        )}
-      </div>
-    </button>
-  );
-}
+// ───── Line ordering helper ──────────────────────────────────────────────
 
 /**
  * Order a course's lines so each deviation (`parentLineId` set) sits
@@ -774,6 +709,239 @@ function orderLinesForPicker(lines: OpeningLine[]): OpeningLine[] {
   }
   out.push(...orphanedDeviations);
   return out;
+}
+
+// ───── Course control bar (slim header replacing 3 separate strips) ──────
+
+interface CourseControlBarProps {
+  repertoire: Repertoire;
+  course: OpeningCourse | undefined;
+  onBack: () => void;
+  activeLineId: string | null;
+  onSelectLine: (id: string) => void;
+  lineProgressRows: LineProgress[];
+  mode: Mode;
+  onSelectMode: (m: Mode) => void;
+  stats: { mastered: number; ownTotal: number; linesCompleted: number; linesTotal: number };
+}
+
+function CourseControlBar({
+  repertoire,
+  course,
+  onBack,
+  activeLineId,
+  onSelectLine,
+  lineProgressRows,
+  mode,
+  onSelectMode,
+  stats,
+}: CourseControlBarProps): ReactNode {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const activeLine = useMemo(() => {
+    if (!course || activeLineId === null) return undefined;
+    return course.lines.find((l) => l.id === activeLineId);
+  }, [course, activeLineId]);
+
+  const orderedLines = useMemo(
+    () => (course ? orderLinesForPicker(course.lines) : []),
+    [course],
+  );
+
+  const lineCounts = useMemo(() => {
+    if (!course) return { mainline: 0, deviation: 0 };
+    const mainline = course.lines.filter((l) => l.parentLineId === undefined).length;
+    return { mainline, deviation: course.lines.length - mainline };
+  }, [course]);
+
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border/60 bg-elevated/40 px-3 py-1.5 text-sm backdrop-blur-sm">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Back to courses"
+        className="rounded text-base text-muted-foreground transition-colors hover:text-foreground"
+      >
+        ←
+      </button>
+
+      <div className="flex items-baseline gap-2">
+        <h2
+          className="font-display text-base font-semibold leading-tight text-foreground"
+          title={course?.tagline ?? repertoire.description ?? undefined}
+        >
+          {repertoire.name}
+        </h2>
+        <span className="rounded bg-muted/70 px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-muted-foreground">
+          {repertoire.repForWhite ? 'White' : 'Black'}
+        </span>
+      </div>
+
+      {/* Line popover trigger */}
+      {course && course.lines.length > 0 && (
+        <div className="relative">
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => setPickerOpen((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={pickerOpen}
+            aria-controls="lines-popover"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1 text-[12.5px] font-medium hover:bg-muted"
+          >
+            <span className="font-display">{activeLine?.name ?? 'Pick a line'}</span>
+            {activeLine?.parentLineId !== undefined && (
+              <span
+                className="rounded-sm bg-violet-500/15 px-1 text-[8.5px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300"
+                aria-label="Deviation off the parent mainline"
+              >
+                Dev
+              </span>
+            )}
+            <span aria-hidden className="text-[10px] text-muted-foreground">▾</span>
+          </button>
+          <Popover
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            triggerRef={triggerRef}
+            panelId="lines-popover"
+            aria-label="Lines in this opening"
+            className="left-0 mt-1 max-h-[60vh] w-[300px] overflow-y-auto p-1.5"
+          >
+            <div className="mb-1 flex items-baseline justify-between gap-2 px-1.5 pt-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Lines
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {lineCounts.deviation > 0
+                  ? `${lineCounts.mainline} mainlines · ${lineCounts.deviation} deviations`
+                  : `${lineCounts.mainline} lines`}
+                {' '}· <kbd className="rounded border border-border bg-muted px-1 font-mono">[</kbd>
+                {' / '}
+                <kbd className="rounded border border-border bg-muted px-1 font-mono">]</kbd>
+              </span>
+            </div>
+            <ul className="flex flex-col gap-0.5" role="listbox" aria-label="Lines">
+              {orderedLines.map((l) => {
+                const progress = lineProgressRows.find((r) => r.lineId === l.id);
+                const status: 'unseen' | 'in-progress' | 'completed' =
+                  progress === undefined || progress.discoveredNodeIdx <= 0
+                    ? 'unseen'
+                    : progress.completed
+                      ? 'completed'
+                      : 'in-progress';
+                const dot = status === 'completed' ? '●' : status === 'in-progress' ? '◐' : '◯';
+                const isDeviation = l.parentLineId !== undefined;
+                const active = l.id === activeLineId;
+                return (
+                  <li key={l.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      onClick={() => {
+                        onSelectLine(l.id);
+                        setPickerOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12.5px] transition-colors ${
+                        isDeviation ? 'pl-5' : ''
+                      } ${
+                        active
+                          ? 'bg-accent/20 text-foreground ring-1 ring-accent/40'
+                          : 'hover:bg-muted'
+                      }`}
+                    >
+                      <span
+                        className={`shrink-0 text-[11px] ${
+                          status === 'completed'
+                            ? 'text-accent'
+                            : status === 'in-progress'
+                              ? 'text-amber-500'
+                              : 'text-muted-foreground'
+                        }`}
+                        aria-hidden
+                      >
+                        {dot}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{l.name}</span>
+                      {isDeviation && (
+                        <span
+                          className="shrink-0 rounded-sm bg-violet-500/15 px-1 py-0 text-[8.5px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300"
+                          aria-label="Deviation"
+                        >
+                          Dev
+                        </span>
+                      )}
+                      <span className="shrink-0 text-[10px] text-muted-foreground">
+                        {l.nodes.length - 1}p
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </Popover>
+        </div>
+      )}
+
+      {/* Mode tabs — compact, icon + label, share the framer-motion pill */}
+      <div className="flex items-center gap-0.5 rounded-md border border-border bg-background/40 p-0.5">
+        {(['learn', 'drill', 'explore', 'puzzles', 'test'] as Mode[]).map((m) => {
+          const isActive = mode === m;
+          const disabled = (m === 'learn' || m === 'test') && !course;
+          const label =
+            m === 'learn' ? 'Learn' :
+            m === 'drill' ? 'Drill' :
+            m === 'explore' ? 'Explore' :
+            m === 'puzzles' ? 'Puzzles' :
+            'Test';
+          const Icon =
+            m === 'learn' ? LearnIcon :
+            m === 'drill' ? DrillIcon :
+            m === 'explore' ? ExploreIcon :
+            m === 'puzzles' ? PuzzlesIcon :
+            TestIcon;
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => !disabled && onSelectMode(m)}
+              disabled={disabled}
+              className={`relative rounded px-2 py-0.5 text-[12px] font-medium transition-colors ${
+                isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+              } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
+              title={disabled ? 'No prose course yet for this opening' : label}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="opening-tab-pill"
+                  className="absolute inset-0 rounded bg-elevated shadow-sm"
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                />
+              )}
+              <span className="relative inline-flex items-center gap-1.5">
+                <Icon size={13} />
+                <span className="hidden sm:inline">{label}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Stats — right-justified, very subtle. */}
+      <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
+        <span title="Lines you've walked through Learn mode end-to-end">
+          <span className="font-mono font-semibold text-foreground">{stats.linesCompleted}</span>
+          <span className="opacity-60">/{stats.linesTotal}</span> lines
+        </span>
+        <span title="Your own-moves with at least a 7-day review interval">
+          <span className="font-mono font-semibold text-foreground">{stats.mastered}</span>
+          <span className="opacity-60">/{stats.ownTotal}</span> mastered
+        </span>
+      </div>
+    </div>
+  );
 }
 
 // ───── Course detail (header + tabs + mode body) ─────────────────────────
@@ -871,119 +1039,28 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
   }, [course, activeLineId]);
 
   return (
-    <div className="flex h-full min-w-0 flex-col gap-2 overflow-hidden">
-      {/* Compact header: back link + title + side badge + stats inline.
-          Replaces the previous tall card so the board has more room
-          on small laptops without sacrificing information density. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Back
-        </button>
-        <h2 className="font-display text-lg font-semibold leading-tight">{repertoire.name}</h2>
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {repertoire.repForWhite ? 'White' : 'Black'}
-        </span>
-        <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span title="Lines you've walked through Learn mode end-to-end">
-            <span className="font-semibold text-foreground">{stats.linesCompleted}</span>
-            <span className="opacity-60"> / {stats.linesTotal}</span> lines
-          </span>
-          <span title="Your own-moves with at least a 7-day review interval">
-            <span className="font-semibold text-foreground">{stats.mastered}</span>
-            <span className="opacity-60"> / {stats.ownTotal}</span> mastered
-          </span>
-        </div>
-      </div>
-      {(course?.tagline ?? repertoire.description) && (
-        <p className="-mt-1 text-xs text-muted-foreground">{course?.tagline ?? repertoire.description}</p>
-      )}
-
-      {course && course.lines.length > 0 && (
-        <section aria-label="Lines in this opening" className="shrink-0 rounded-md border border-border bg-elevated/40 px-2 py-1.5">
-          <div className="mb-1 flex items-baseline justify-between gap-2">
-            <h3 className="font-display text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lines</h3>
-            <p className="text-[10px] text-muted-foreground">
-              {(() => {
-                const mainlineCount = course.lines.filter((l) => l.parentLineId === undefined).length;
-                const deviationCount = course.lines.length - mainlineCount;
-                if (course.lines.length === 1) return '1 line';
-                const base = deviationCount > 0
-                  ? `${mainlineCount} mainline${mainlineCount === 1 ? '' : 's'} · ${deviationCount} deviation${deviationCount === 1 ? '' : 's'}`
-                  : `${mainlineCount} lines`;
-                return (
-                  <>
-                    {base} · <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">[</kbd> / <kbd className="rounded border border-border bg-muted px-1 font-mono text-[10px]">]</kbd>
-                  </>
-                );
-              })()}
-            </p>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {orderLinesForPicker(course.lines).map((l) => {
-              const progress = lineProgressRows.find((r) => r.lineId === l.id);
-              return (
-                <LineCard
-                  key={l.id}
-                  line={l}
-                  active={l.id === activeLineId}
-                  progress={progress}
-                  onSelect={() => setActiveLineId(l.id)}
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      <div className="flex shrink-0 items-center gap-1 self-start rounded-md border border-border bg-elevated/40 p-1 text-sm">
-        {(['learn', 'drill', 'explore', 'puzzles', 'test'] as Mode[]).map((m) => {
-          const isActive = mode === m;
-          // 'test' shares the 'no course = disabled' policy with
-          // 'learn' because both depend on the lesson tabiya prose
-          // existing for this opening.
-          const disabled = (m === 'learn' || m === 'test') && !course;
-          const label =
-            m === 'learn' ? 'Learn' :
-            m === 'drill' ? 'Drill' :
-            m === 'explore' ? 'Explore' :
-            m === 'puzzles' ? 'Puzzles' :
-            'Test';
-          const Icon =
-            m === 'learn' ? LearnIcon :
-            m === 'drill' ? DrillIcon :
-            m === 'explore' ? ExploreIcon :
-            m === 'puzzles' ? PuzzlesIcon :
-            TestIcon;
-          return (
-            <button
-              key={m}
-              type="button"
-              onClick={() => !disabled && setMode(m)}
-              disabled={disabled}
-              className={`relative rounded px-3 py-1 text-[13px] font-medium transition-colors ${
-                isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-              } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
-              title={disabled ? 'No prose course yet for this opening' : undefined}
-            >
-              {isActive && (
-                <motion.span
-                  layoutId="opening-tab-pill"
-                  className="absolute inset-0 rounded bg-background shadow-sm"
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                />
-              )}
-              <span className="relative inline-flex items-center gap-1.5">
-                <Icon size={14} />
-                {label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+    <div className="flex h-full min-w-0 flex-col gap-3 overflow-hidden">
+      {/* Single slim control strip — the only chrome between the global
+          nav and the board. Contains, left-to-right:
+            - back arrow
+            - opening name (with tagline as title-tooltip)
+            - line popover trigger ("Classical Pirc ▾" → opens line list)
+            - mode tabs (compact icon+label)
+            - progress chips (right-justified)
+          Total height ~36 px instead of the previous ~210 px (course-header
+          card + lines-picker section + mode-tabs row). The board grows
+          ~170 px taller as a result. */}
+      <CourseControlBar
+        repertoire={repertoire}
+        course={course}
+        onBack={onBack}
+        activeLineId={activeLineId}
+        onSelectLine={setActiveLineId}
+        lineProgressRows={lineProgressRows}
+        mode={mode}
+        onSelectMode={setMode}
+        stats={stats}
+      />
 
       {/* Mode body fills the remaining viewport height. Each mode view
           assumes h-full and lays itself out internally; the board sizes
