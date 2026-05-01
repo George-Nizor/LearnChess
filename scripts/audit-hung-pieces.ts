@@ -60,6 +60,15 @@ const KNOWN_SACRIFICES = new Set<string>([
   // the piece. Depth-1 SEE flags the knight as hung but the d5 fork
   // recovers material. Prose walks through the recovery explicitly.
   'vienna-falkbeer:6:Nxe4',
+  // Vienna Frankenstein-Dracula full 3...Nxe4 — same sacrifice as the
+  // vienna-falkbeer line, recovered via the d5 fork.
+  'vienna-frankenstein-dracula-full:6:Nxe4',
+  // Vienna Frankenstein-Dracula full 6.Nb5 — Black cannot capture
+  // because 7.Qxe5+ recovers material with check.
+  'vienna-frankenstein-dracula-full:11:Nb5',
+  // Vienna Hamppe-Allgaier 7.Nxf7 — famous knight sacrifice for
+  // king-hunt; documented intentional sacrifice.
+  'vienna-hamppe-allgaier:13:Nxf7',
 ]);
 
 const hangs: Hang[] = [];

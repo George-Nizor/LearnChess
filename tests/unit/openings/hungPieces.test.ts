@@ -58,6 +58,25 @@ const KNOWN_SACRIFICES = new Set<string>([
   // sacrifice is short-term — depth-1 SEE flags it but full sequence
   // is sound. Prose explains the d5 fork explicitly.
   'vienna-falkbeer:6:Nxe4',
+  // Vienna Frankenstein-Dracula full: same 3...Nxe4 sacrifice as the
+  // vienna-falkbeer line above (different line walks the deeper move
+  // sequence). After 4.Nxe4 d5 the d-pawn forks bishop + knight, Black
+  // recovers the piece. Depth-1 SEE flags it but the tactic is sound.
+  'vienna-frankenstein-dracula-full:6:Nxe4',
+  // Vienna Frankenstein-Dracula full: 6.Nb5! is the documented critical
+  // move — Black cannot play 6...Nxb5 because 7.Qxe5+ wins material
+  // back (with check, Black cannot defend AND save the knight). Depth-1
+  // SEE flags Nb5 as hung but the tactic justifies it. Black's
+  // principled reply is 6...g6 attacking the queen, not capturing the
+  // knight. Prose explains the threat explicitly.
+  'vienna-frankenstein-dracula-full:11:Nb5',
+  // Vienna Hamppe-Allgaier 7.Nxf7! — the famous knight sacrifice from
+  // 1840s, Black takes (forced or stays a pawn down) and we get a
+  // king-hunt with d4 + Bxf4 + Bc4+ + O-O-O. Theoretically equal at
+  // engine-precise level, +1.5 to +2.5 in practical play. Documented
+  // sacrifice; depth-1 SEE flags it as a hang but the king-hunt is the
+  // compensation. Prose walks through the attack explicitly.
+  'vienna-hamppe-allgaier:13:Nxf7',
 ]);
 
 function findHangs(): Hang[] {
