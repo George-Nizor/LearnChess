@@ -226,6 +226,55 @@ const SPECS: OpeningSpec[] = [
   },
 
   // ====================================================================
+  // SCOTCH GAME (white) — drilled from 1.e4 e5 2.Nf3 Nc6 3.d4
+  // ====================================================================
+  {
+    id: 'scotch-white',
+    name: 'Scotch Game',
+    eco: 'C44',
+    forColor: 'w',
+    category: 'open',
+    description: '1.e4 e5 Nf3 Nc6 d4 — strike the centre on move 3, open the position fast.',
+    tree: [{
+      san: 'e4', weight: 100, children: [
+        { san: 'e5', weight: 70, children: [
+          { san: 'Nf3', weight: 100, children: [
+            { san: 'Nc6', weight: 80, children: [
+              { san: 'd4', weight: 100, children: [
+                { san: 'exd4', weight: 90, children: [
+                  { san: 'Nxd4', weight: 70, comment: 'Scotch proper', children: [
+                    { san: 'Nf6', weight: 60, comment: 'Schmidt Variation', children: [
+                      { san: 'Nxc6', weight: 80, children: [
+                        { san: 'bxc6', weight: 90, children: [
+                          { san: 'e5', weight: 95 },
+                        ]},
+                      ]},
+                    ]},
+                    { san: 'Bc5', weight: 30, comment: 'Classical Variation', children: [
+                      { san: 'Be3', weight: 90 },
+                    ]},
+                    { san: 'Qh4', weight: 5, comment: 'Steinitz Variation', children: [
+                      { san: 'Nb5', weight: 100 },
+                    ]},
+                  ]},
+                  { san: 'c3', weight: 20, comment: 'Göring Gambit', children: [
+                    { san: 'dxc3', weight: 70, children: [
+                      { san: 'Nxc3', weight: 100 },
+                    ]},
+                  ]},
+                  { san: 'Bc4', weight: 10, comment: 'Scotch Gambit', children: [
+                    { san: 'Bc5', weight: 60 },
+                  ]},
+                ]},
+              ]},
+            ]},
+          ]},
+        ]},
+      ],
+    }],
+  },
+
+  // ====================================================================
   // SICILIAN DEFENCE (black) — opp plays e4, we reply c5
   // ====================================================================
   {
