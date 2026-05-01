@@ -13,6 +13,11 @@ public/engine/*.bin
 public/engine/*.nnue
 public/puzzles.db
 public/puzzles.manifest.json
+public/opening-tree.json
+# Raw PGN sources used to BUILD the opening tree (not versioned —
+# users download fresh from https://database.lichess.org/).
+*.pgn
+*.pgn.zst
 
 .env
 .env.*

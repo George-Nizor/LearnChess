@@ -1,0 +1,29 @@
+{
+  "_comment": "Targets config for scripts/generate-opening-lines.ts. Each key is an opening id (matches src/openings/lessons.ts course key). 'rootMoves' walks the frequency tree to the opening's entry position; 'branchPlies' is how deep past root to expand (8 ≈ 4 full moves of variation); 'maxBranchesPerNode' caps the fan-out per ply (3 means top-3 most-played continuations); 'minFrequencyPct' drops moves played in <N% of master games at that node.",
+  "_note": "Start with the 4 thin courses (London, Vienna, Scandinavian, Pirc). Once those produce good output, add the rest.",
+
+  "london-white": {
+    "rootMoves": ["d4", "d5", "Bf4"],
+    "branchPlies": 8,
+    "maxBranchesPerNode": 3,
+    "minFrequencyPct": 5
+  },
+  "vienna-white": {
+    "rootMoves": ["e4", "e5", "Nc3"],
+    "branchPlies": 8,
+    "maxBranchesPerNode": 3,
+    "minFrequencyPct": 5
+  },
+  "scandinavian-black": {
+    "rootMoves": ["e4", "d5"],
+    "branchPlies": 8,
+    "maxBranchesPerNode": 3,
+    "minFrequencyPct": 5
+  },
+  "pirc-black": {
+    "rootMoves": ["e4", "d6", "d4", "Nf6", "Nc3", "g6"],
+    "branchPlies": 6,
+    "maxBranchesPerNode": 3,
+    "minFrequencyPct": 5
+  }
+}

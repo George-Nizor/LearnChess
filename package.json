@@ -24,6 +24,8 @@
     "build:puzzles": "tsx scripts/build-puzzles.ts",
     "audit:engine": "tsx scripts/build-eval-baseline.ts",
     "audit:hung": "tsx scripts/audit-hung-pieces.ts",
+    "content:tree": "tsx scripts/build-opening-tree.ts",
+    "content:gen": "tsx scripts/generate-opening-lines.ts",
     "vendor:all": "npm run vendor:engine && npm run vendor:sqlite && npm run vendor:sounds && npm run vendor:piece-sets && npm run vendor:opening-names",
     "setup": "npm run vendor:all && npm run build:puzzles"
   },
