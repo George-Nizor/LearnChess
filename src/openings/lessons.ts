@@ -40,6 +40,7 @@
 
 import { Chess } from 'chess.js';
 import { normFen } from './fen';
+import { GENERATED_LINES } from './generated-lines';
 
 // ────────────────────────────────────────────────────────────────────────
 // Opening-name lookup (lichess-org/chess-openings TSV → JSON)
@@ -132,6 +133,15 @@ export interface OpeningLine {
    * label like "deviation at White's 6th".
    */
   deviationFromMove?: number;
+  /**
+   * Provenance for auto-generated lines (Tier-A pipeline — see
+   * docs/CONTENT_SOURCING_PLAN.md). When set, the line picker shows a
+   * "draft" badge, the Drill mode de-prioritises it, and the Learn view
+   * reminds the author the prose is template-generated and needs human
+   * authoring before it ships as polished content. Hand-authored lines
+   * leave this undefined.
+   */
+  generated?: { source: 'lichess-masters'; gamesAtTabiya: number };
 }
 
 export interface OpeningCourse {
@@ -3790,6 +3800,59 @@ export const OPENING_COURSES: Record<string, OpeningCourse> = {
     ],
   },
 };
+
+// ────────────────────────────────────────────────────────────────────────
+// Generated-line merge
+//
+// The Tier-A pipeline (scripts/build-opening-tree.ts +
+// scripts/generate-opening-lines.ts — see docs/CONTENT_SOURCING_PLAN.md)
+// emits popularity-weighted line stubs into src/openings/generated-lines.ts.
+// We import that module unconditionally — when the pipeline hasn't run,
+// GENERATED_LINES is an empty array and this merge is a no-op.
+//
+// Merge rules:
+//   - Each generated line is appended to the END of its course's lines
+//     array (so hand-authored lines always sort first).
+//   - If a generated line's id collides with a hand-authored line's id,
+//     the hand-authored line wins and the generated stub is dropped
+//     (with a console warning at module load).
+//   - The chess.js SAN replay runs through buildLine() exactly like
+//     hand-authored lines — so any illegal move in a generated stub
+//     fails LOUDLY at module load, not silently in production.
+//   - Generated lines carry their `generated` flag through to OpeningLine
+//     so the line picker / Drill / Learn views can treat them as drafts.
+// ────────────────────────────────────────────────────────────────────────
+
+function mergeGeneratedLines(): void {
+  for (const gen of GENERATED_LINES) {
+    const course = OPENING_COURSES[gen.openingId];
+    if (!course) {
+      console.warn(`[generated-lines] dropping ${gen.id} — no course '${gen.openingId}'`);
+      continue;
+    }
+    if (course.lines.some((l) => l.id === gen.id)) {
+      console.warn(`[generated-lines] skipping ${gen.id} — id collides with a hand-authored line`);
+      continue;
+    }
+    let line: OpeningLine;
+    try {
+      const built = buildLine({
+        id: gen.id,
+        name: gen.name,
+        description: gen.description,
+        intro: gen.intro,
+        moves: gen.moves,
+      });
+      line = { ...built, generated: gen.generated };
+    } catch (e) {
+      console.error(`[generated-lines] dropping ${gen.id} — chess.js rejected SAN: ${(e as Error).message}`);
+      continue;
+    }
+    course.lines.push(line);
+  }
+}
+
+mergeGeneratedLines();
 
 // ────────────────────────────────────────────────────────────────────────
 // Lookups
