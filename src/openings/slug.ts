@@ -27,6 +27,7 @@ const OPENING_SLUG_OVERRIDES: Record<string, string> = {
   'slav-black': 'Slav_Defense',
   'vienna-white': 'Vienna_Game',
   'italian-white': 'Italian_Game',
+  'scotch-white': 'Scotch_Game',
 };
 
 /**
