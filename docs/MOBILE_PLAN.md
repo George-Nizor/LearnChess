@@ -68,6 +68,52 @@ There are also touch-interaction issues separate from layout:
    slower devices should get instant route swaps (already true after
    the PageTransition fix).
 
+## Desktop preservation guarantee (READ BEFORE IMPLEMENTING)
+
+**Hard rule: the desktop UX must remain visually and functionally
+identical after this work.** The user has explicitly called the
+desktop view "perfect" and does not want regressions.
+
+This is enforceable. Every change in this plan is implemented as a
+mobile-only addition, gated behind one of:
+
+- A **min-width media query** (`< md` = 768 px / `< lg` = 1024 px /
+  `< xl` = 1280 px) — desktop never sees the rule.
+- A **pointer/hover media query**
+  (`@media (hover: none) and (pointer: coarse)`) — touch-only
+  refinements; desktop with mouse keeps existing behaviour.
+- A **new opt-in component** (e.g. `<EvalBar orientation="horizontal" />`)
+  — desktop continues to use the existing default variant.
+
+Specific items that touch desktop CSS — required mitigations:
+
+| Change | Risk | Required mitigation |
+|---|---|---|
+| Grid refactor `grid-cols-[auto_360px]` → responsive | Layout shift at 1024 px boundary | Pin `lg:grid-cols-[auto_360px]` so desktop layout is byte-identical to current. Visual-diff at 1280 px + 1920 px before merging each route. |
+| `vh` → `dvh` for layout heights | None — `dvh === vh` on desktop browsers (no URL-bar collapse) | None needed; document the equivalence. |
+| Touch-target ≥ 44 × 44 px nav | Desktop nav would grow from 40 × 40 to 44 × 44 | Use responsive utility: `h-10 w-10 md:h-10 md:w-10 max-md:h-11 max-md:w-11`. Desktop stays at 40 × 40. |
+| Strip hover-only UI | Desktop loses tooltips, hover-pills | Gate hover effects behind `@media (hover: hover) and (pointer: fine)`; touch devices skip them, desktop keeps them. |
+| Bottom nav | Could overlap content if rendered everywhere | Mount only on `< md` via `display: none md:block` on the existing left rail and `display: block md:hidden` on the bottom nav. |
+| Bottom sheets | Risk of mounting on desktop and trapping focus | Component renders `null` on `≥ lg` viewports — verified in unit tests. |
+
+Quality gates that ENFORCE this rule:
+
+1. **Visual-regression checkpoint** at three breakpoints — 1920 px,
+   1440 px, 1024 px — before each phase merges. Capture
+   screenshots of all 7 main routes; diff against the pre-change
+   baseline. Any pixel difference at ≥ 1024 px requires explicit
+   sign-off.
+2. **Storybook (or Playwright trace) of the desktop layout at
+   1440 × 900** added to CI for each phase. Fails the build if
+   the desktop board / rail / spacing changes.
+3. **Manual desktop smoke test** before each commit lands: Play /
+   Analysis / Tactics / Openings / Endgames / Dashboard at the
+   user's actual usual window size.
+
+If at any point during implementation a desktop visual diff appears,
+the change is reverted and re-engineered behind a stricter media
+query before retry.
+
 ## Per-route mobile spec
 
 ### Play (vs Stockfish) — board + 1 sidebar
