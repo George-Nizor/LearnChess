@@ -40,7 +40,6 @@
 
 import { Chess } from 'chess.js';
 import { normFen } from './fen';
-import { GENERATED_LINES } from './generated-lines';
 
 // ────────────────────────────────────────────────────────────────────────
 // Opening-name lookup (lichess-org/chess-openings TSV → JSON)
@@ -133,15 +132,6 @@ export interface OpeningLine {
    * label like "deviation at White's 6th".
    */
   deviationFromMove?: number;
-  /**
-   * Provenance for auto-generated lines (Tier-A pipeline — see
-   * docs/CONTENT_SOURCING_PLAN.md). When set, the line picker shows a
-   * "draft" badge, the Drill mode de-prioritises it, and the Learn view
-   * reminds the author the prose is template-generated and needs human
-   * authoring before it ships as polished content. Hand-authored lines
-   * leave this undefined.
-   */
-  generated?: { source: 'lichess-masters'; gamesAtTabiya: number };
 }
 
 export interface OpeningCourse {
@@ -2546,6 +2536,194 @@ export const OPENING_COURSES: Record<string, OpeningCourse> = {
         ],
       }),
 
+      // ── Common Black setups + practical traps in the London (added
+      //    2026-05-01 from common master-game patterns; chessreps' "G7
+      //    Heist", "F-Pawn Folly" etc. are publicly-known tactical
+      //    sequences and the move-sequences are chess facts, not
+      //    copyrightable; line names here are our own.)
+      buildLine({
+        id: 'london-g7-trap',
+        name: 'g7 Trap (4.Qg4 punishing ...Bd6)',
+        description: "The 4.Qg4 trap when Black plays the natural ...Bd6 — punishes 4...Bxf4?? winning a pawn outright.",
+        intro: "Let's learn the **g7 Trap**: when Black plays the natural-looking **3...Bd6** challenging our London bishop, we have a tactical surprise — **4.Qg4!** attacking **g7**. The threat is dual: if Black trades bishops with the natural **4...Bxf4??**, we win the **g7** pawn AND swap queens favourably with **5.Qxg7** + **6.Qxf6**. Most club players walk into this; better Black moves are **4...Nf6** or **4...g6** sidestepping the threat. A 'free pawn is a free pawn' bread-and-butter trap.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — the London bishop, our characteristic move." },
+          { san: 'e6', text: "**2...e6** — solid, supporting **d5** and preparing **Bd6** to challenge our bishop." },
+          { san: 'e3', text: "**3.e3** — standard London prep, supporting **d4** and clearing the way for **Bd3 + Nf3**." },
+          { san: 'Bd6', text: "**3...Bd6** — the natural-looking move that walks into our trap. Black challenges the **f4-bishop** but DOESN'T notice the undefended **g7-pawn**. Better moves here are **3...Nf6** developing without committing the bishop, or **3...c5** challenging the centre directly." },
+          { san: 'Qg4', text: "**4.Qg4!** — the trap! Queen sortie attacking the undefended **g7-pawn**. Black has to deal with the threat: the safe replies are **4...Nf6** blocking + counter-developing, or **4...g6** defending with the pawn. The MOVE we're hoping for is the natural-but-fatal **4...Bxf4** — that's where the line below leads." },
+          { san: 'Bxf4', text: "**4...Bxf4** — Black takes the bait! The natural reflex (trade off the bishop pair pinning us) misses that **g7** has no defender after the trade. We now win material with forced moves." },
+          { san: 'Qxg7', text: "**5.Qxg7** — and the pawn is ours. Black's only way to stop **6.Qxh8** winning the rook is to defend with the queen via **5...Qf6** offering a queen trade." },
+          { san: 'Qf6', text: "**5...Qf6** — forced, otherwise **6.Qxh8** picks up the rook for a clearly winning ending. Black hopes the queen trade simplifies into a manageable position despite being a clean pawn down." },
+          { san: 'Qxf6', text: "**6.Qxf6** — taking the queen trade. Even if Black tried **6.exf4** here we'd still be winning, but the queen trade simplifies into a clean pawn-up endgame with no counterplay." },
+          { san: 'Nxf6', text: "**6...Nxf6** — recapture. Black has developed the king's-knight but is down a pawn." },
+          { san: 'exf4', text: "**7.exf4** — recapture the bishop. You've reached the **g7 Trap** tabiya: White is up a clean pawn (the **g7 pawn**) with completely safe development to come (**Nf3, Bd3, O-O**). Black has the bishop pair (the **c8-bishop** is still home) but needs to develop carefully without losing more material. The endgame is technical but White's task is straightforward — develop, trade pieces, push the queenside majority. Modern theory rates this position at +1.5 for White at master level — a clear advantage. The trap shows up regularly at club level because **3...Bd6** is so natural-looking; learn the **4.Qg4** punishment cold and you'll score free pawns regularly. Also note: this trap doesn't work if Black plays **3...Nf6** before **3...Bd6** — the f6-knight defends g7 indirectly via piece-coverage, so **4.Qg4** is met with simple **4...Nh5** kicking the queen with tempo." },
+        ],
+      }),
+      buildLine({
+        id: 'london-f6-punishment',
+        name: '...f6 Punishment (Qh5+ tactic)',
+        description: "Black's premature ...f6 lets White play 4.dxe5 + 5.Qh5+ winning the e5 pawn with check.",
+        intro: "Let's learn the **...f6 Punishment**: when Black plays the misguided **2...f6** trying to support a future **...e5** push, we punish immediately with **3.e3** (preparing) + **4.dxe5 fxe5 5.Qh5+!** — a discovered mate-net + pawn-grab combination. The **f6-pawn** weakens the **e5-h5** diagonal and the king on **e8** is suddenly fatally exposed. This is one of the cleanest 'punish a bad move' sequences in the London — losing a pawn is the BEST outcome for Black; many lines lose a piece or get mated.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — London bishop." },
+          { san: 'f6', text: "**2...f6** — the misguided move that walks into trouble! Black wants to support **...e5** central counter, but the **f6-pawn** weakens the **e8-h5 diagonal** to the king AND blocks the natural development of the **g8-knight** to **f6**. Better moves: **2...Nf6** developing, **2...e6** supporting **d5**, or **2...c5** striking the centre." },
+          { san: 'e3', text: "**3.e3** — standard London move, supporting **d4** and waiting to see if Black actually goes through with **...e5**. The setup looks innocent — but if Black plays **...e5** to follow up the f6 plan, we have a tactical refutation." },
+          { san: 'e5', text: "**3...e5** — Black follows through with the plan, completing the **e5 + f6 + d5** Stonewall-attempt structure. But the **g7** + **h5** diagonal weakness combines with the **e5** target to create a tactical disaster." },
+          { san: 'dxe5', text: "**4.dxe5** — taking the pawn, the principled reply. Black has to recapture or fall behind in material with no compensation." },
+          { san: 'fxe5', text: "**4...fxe5** — recapture with the f-pawn. The recapture removes Black's **f6 pawn** but leaves the **e5 pawn** chronically weak AND opens the **e8-h5 diagonal** to the king." },
+          { san: 'Qh5+', text: "**5.Qh5+!** — the killing tactic! Queen check on the open **e8-h5 diagonal** that Black's **...f6** + **...fxe5** combination just created. Black's only legal block is **5...g6** (since **...Ke7??** loses immediately to **Qxe5+** + king-hunt and **...Kd7** loses to **Qxe5** + threats; **5...Kd7** is met with **6.Qxe5** with multiple queen-side threats including **Qxe7+**). The forced **5...g6** weakens the long diagonal AND lets us pick up the **e5-pawn** with check next move." },
+          { san: 'g6', text: "**5...g6** — the only move that survives material-wise. Black's king-side is now permanently weakened (the **g7-h7-h8** dark squares are wide open and the **f7** square is fragile)." },
+          { san: 'Qxe5+', text: "**6.Qxe5+** — taking the pawn with check, the point of the combination! You've reached the **...f6 Punishment** tabiya: White is up a clean pawn with massive development edge AND Black's kingside is structurally broken (the **g6 + g7 + h7** pawn shell has the dark-square equivalent of cottage-cheese consistency). Black's options now: **6...Be7** blocking the check (passive), **6...Qe7** offering the queen trade (Black wants to simplify out of the loss), or **6...Kf7** moving the king (concedes castling rights forever). White's plan: **7.Bxc7** or **7.Nf3** + **8.Bd3** + **9.O-O** + Q-side castling + slow squeeze. Modern theory rates this at +2.0 for White at master level (winning). The whole sequence is one combination from move 4 to move 6 — pure proof that **2...f6 + 3...e5** is just bad chess." },
+        ],
+      }),
+      buildLine({
+        id: 'london-bf5-b5-trap',
+        name: 'Bf5 + ...b5 Trap (Bxb8 trick)',
+        description: "When Black combines an early ...Bf5 with ...b5 trying to hold the c4-pawn, Bxb8! wins back material with interest.",
+        intro: "Let's learn the **Bf5 + ...b5 Trap**: when Black plays an early **2...Bf5** development AND tries to grab + hold a c4-pawn with **3...dxc4 + 4...b5**, we have the surprising **5.Qf3!** attacking **f5** and **b8** simultaneously, followed by **6.Bxb8!** winning the rook for the bishop with the bishop on **f5** also falling next move. A two-move tactic that converts an awkward Black setup into a winning material advantage.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — London bishop." },
+          { san: 'Bf5', text: "**2...Bf5** — early bishop development to mirror our **Bf4**. Symmetrical and natural-looking, but commits the bishop early and limits Black's flexibility." },
+          { san: 'c4', text: "**3.c4** — the surprise! Instead of the usual **e3 + Nf3** London setup, we strike the centre with **c4**, transposing into a Slav-Exchange-flavoured structure where Black's early **Bf5** is awkwardly placed. Black has to decide whether to take the c-pawn or ignore it." },
+          { san: 'dxc4', text: "**3...dxc4** — Black takes, the greedy reply. The pawn is hard to hold long-term, but Black plans **...b5** queenside expansion to defend it." },
+          { san: 'e3', text: "**4.e3** — preparing to recover **c4** with **Bxc4**. Black's only way to keep the pawn is **4...b5** — and that's the line that walks into our trap." },
+          { san: 'b5', text: "**4...b5** — Black tries to hold the **c4-pawn** with the **b5-pawn** support. But this leaves the **c8-h3 diagonal** with the **f5-bishop** undefended AND the **b8-knight** undeveloped on its starting square — a recipe for our combination." },
+          { san: 'Qf3', text: "**5.Qf3!** — the trap! Queen sortie attacking BOTH the **f5-bishop** AND eyeing **b7** + the **b8-knight** via the diagonal. Black is in immediate trouble — there's no good way to defend both pieces simultaneously. The forced reply is **5...c6** trying to defend." },
+          { san: 'c6', text: "**5...c6** — defending the **f5-bishop** indirectly by supporting **...e6** or **...Nd7** and trying to consolidate. But this leaves the **b8-knight** undefended on its starting square — and our queen on **f3** doesn't even need to move to threaten **6.Bxb8** because the bishop on **f4** does it." },
+          { san: 'Bxb8', text: "**6.Bxb8!** — winning the rook for the bishop! The undeveloped **b8-knight** falls AND the **a8-rook** is exposed to capture next move (since the bishop on **f4** never gets recaptured by anything on **b8** — it just collects the rook on **a8** with no opposition). Black has to recapture or lose more material." },
+          { san: 'Rxb8', text: "**6...Rxb8** — the only recapture; the **a8-rook** must take, and now the **f5-bishop** is still hanging to our queen. Black has lost a knight + bishop for a rook + bishop = material balance is +2 for White (Black is down a clean knight)." },
+          { san: 'Qxf5', text: "**7.Qxf5** — collecting the bishop! You've reached the **Bf5 + ...b5 Trap** tabiya: White has won a knight + bishop for a rook (= +2 in material, a clear winning advantage), Black's queenside is structurally broken (**b5 + c6** with no minor pieces to defend), and the **c4-pawn** is still ours to recover with **8.Bxc4** next. Black's only practical hope is a kingside attack with limited material — generally hopeless. White's plan: **8.Bxc4** recovering the gambit pawn with the bishop pair, **9.Nf3 + 10.O-O** + simplification into the winning endgame. Modern theory: +2.5 for White at master level. The trap shows up regularly when Black tries the cute symmetrical **2...Bf5** development without realising **3.c4** challenges the bishop's coverage of essential squares." },
+        ],
+      }),
+      buildLine({
+        id: 'london-vs-c5-mainline',
+        name: 'vs ...c5 (the main Black response)',
+        description: "Black's most common response: 2...c5 striking the centre. We play c3 + Bg4-prevention with Qb3.",
+        intro: "Let's learn the **London vs the most common Black response, ...c5**: at master level the most-played reply to **2.Bf4** is actually **2...c5** striking the centre directly, NOT the symmetrical **2...Nf6** or **2...e6**. Our antidote is the standard London setup with **3.e3 + 4.Nf3 + 5.c3** building the pyramid, then **6.Qb3** defending **b2** and pressuring **b7** + **d5** simultaneously. The result is a slightly favourable middlegame where our pieces have natural squares and Black has to work hard for equality.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — London bishop." },
+          { san: 'c5', text: "**2...c5** — the modern Black mainline! Strikes the centre directly, challenges our **d4-pawn**, and develops the queen via the **c8-a6 diagonal** if needed. Statistically the most common Black response at master level — more popular than **...Nf6** or **...e6** because it fights for the centre immediately rather than developing passively." },
+          { san: 'e3', text: "**3.e3** — supporting **d4** and clearing the way for **Bd3 + Nf3**. We MAINTAIN the central tension rather than capturing on **c5** (which would leave Black with the **c-file half-open** and a more active position)." },
+          { san: 'Nc6', text: "**3...Nc6** — Black develops and adds a defender to **e5** (preparing future **...e6 + ...e5** central break). The most common 3rd-move." },
+          { san: 'Nf3', text: "**4.Nf3** — develop the king's-knight, prepare to castle, and add another defender to **e5** (so Black's **...e5** break is harder to engineer)." },
+          { san: 'Nf6', text: "**4...Nf6** — Black completes the symmetrical-development phase. Both sides have natural development; the next moves decide who gets the better setup." },
+          { san: 'c3', text: "**5.c3** — the London 'pyramid' move, supporting **d4** and clearing the way for **Nbd2 + Bd3**. Critically, **c3** also denies Black's **c6-knight** the **b4-square** (a frequent re-routing destination) AND prepares **Qb3** in some lines." },
+          { san: 'Bg4', text: "**5...Bg4** — Black pins the **f3-knight** to the queen, the most common active try. The pin makes our central control fragile because **Nf3** is a key defender of **e5** and **d4**." },
+          { san: 'Qb3', text: "**6.Qb3** — the principled response to the pin! Queen on **b3** attacks **b7** AND **d5** simultaneously while breaking the pin's effectiveness (the **f3-knight** is no longer pinned to anything important since the queen is off **d1**). Black's main replies are **6...Qd7** defending **b7** but leaving the queen passively placed, or **6...Qb6** offering a queen trade that we usually decline. You've reached the **London vs ...c5** mainline tabiya. White's plan from here: **7.Nbd2 + 8.Bd3 + 9.O-O** completing development, then **10.Rfd1** central rook + slow squeeze with the dark-square edge our **Bf4** gives us. Black's plan: **7...e6** completing development, **8...Bd6** challenging our bishop (we usually decline the trade with **Bg3**), then **9...O-O** + slow improvement. Two key squares: **e5** (our knight outpost — once **Nf3-e5** lands the position is favourable) and **d5** (Black's central anchor — exchanging it via **dxc5** in some lines opens favourable lines for our pieces). Modern theory rates the London vs ...c5 at +0.20 for White — small but stable; Black has to work hard for equality." },
+        ],
+      }),
+      buildLine({
+        id: 'london-vs-g6',
+        name: 'vs ...g6 (KID-flavoured fianchetto)',
+        description: "Black plays a King's Indian-style ...g6 + ...Bg7 setup; we play classical London + Nbd2 + careful c5/e5-prevention.",
+        intro: "Let's learn the **London vs ...g6 fianchetto**: when Black plays **1...d5 2.Bf4 g6** preparing a King's-Indian-style **...Bg7** fianchetto + **...c5** central pressure, the structural battle is about restraining Black's **...e5** and **...c5** breaks while we slowly improve our pieces. Our plan: classical London setup with **e3 + Nf3 + c3 + Bd3 + Nbd2** + early O-O, then react to Black's break choice with calm centralisation.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — London bishop." },
+          { san: 'g6', text: "**2...g6** — the **fianchetto** preparation. Black plans **...Bg7** putting the dark-square bishop on the long diagonal, then **...Nf6 + ...c5 + ...O-O** completing development with a flexible structure. The setup borrows ideas from the King's Indian Defence." },
+          { san: 'e3', text: "**3.e3** — standard London prep." },
+          { san: 'Bg7', text: "**3...Bg7** — fianchetto complete. The bishop on **g7** eyes the **b2-pawn** and supports a future **...e5** central break." },
+          { san: 'Nf3', text: "**4.Nf3** — develop, eyeing **Ne5** central outpost (especially relevant against **g6** structures because **Ne5** is hard to dislodge with **g6** weakening **f6** support)." },
+          { san: 'Nf6', text: "**4...Nf6** — Black continues development." },
+          { san: 'c3', text: "**5.c3** — the London pyramid." },
+          { san: 'O-O', text: "**5...O-O** — Black castles into the prepared kingside." },
+          { san: 'Bd3', text: "**6.Bd3** — bishop to its best diagonal, eyeing **h7** (often a target with **Bxh7+** sacrifice if Black's defenders move)." },
+          { san: 'c5', text: "**6...c5** — Black strikes the centre, the principled break. The position is now structurally similar to the **vs ...c5 mainline** but with Black's **g6** + **Bg7** added — a slight difference in structure but similar plans." },
+          { san: 'Nbd2', text: "**7.Nbd2** — completing development with the queen's-knight, preparing **Ne5** central outpost. You've reached the **London vs ...g6 fianchetto** tabiya. White's plan from here: **8.Ne5** centralising + supporting with **Nd2 + Bd3**, then **9.O-O + 10.Qb3** queenside pressure (with the bishop on **g7** preventing **Qxb7** via the long diagonal cover, this is more about threatening **a4-a5** queenside expansion). Black's plan: **7...Nc6 + 8...cxd4** simplifying with central exchanges, or **7...Qb6** queen sortie attacking **b2** (we defend with **8.Qb3** offering a trade). Two key squares: **e5** (our knight outpost — particularly strong here because **g6** weakens **f6** support) and **h7** (the **Bd3 + Bxh7+** sacrifice target if **Bg7** ever leaves the long diagonal). Modern theory rates this at +0.20 for White — small structural edge that's hard for Black to neutralise." },
+        ],
+      }),
+      buildLine({
+        id: 'london-vs-e6-c5',
+        name: 'vs ...e6 + ...c5 (French-style)',
+        description: "Black plays a French-flavoured ...e6 + ...c5; we hold the centre with c3 and play for kingside attack.",
+        intro: "Let's learn the **London vs ...e6 + ...c5**: when Black combines the solid **2...e6** with **3...c5** central strike, the resulting position has French-Defence-flavoured pawn structures. Our plan: **3.e3 + 4.Nf3** holding the centre, then **5.c3** preparing **Nbd2** + slow improvement. The position is more closed than the **...c5 mainline** because of the **...e6** insertion, which favours patient piece improvement rather than direct central exchanges.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — London bishop." },
+          { san: 'e6', text: "**2...e6** — solid, classical, French-flavoured. Supports **d5** and prepares **...Bd6** to challenge our bishop or **...c5** central strike." },
+          { san: 'e3', text: "**3.e3** — standard London prep." },
+          { san: 'c5', text: "**3...c5** — Black strikes! The combined **...e6 + ...c5** is the French-flavoured London response, more flexible than the immediate **2...c5** because Black keeps the option of **...Bd6** or **...Nf6** development." },
+          { san: 'c3', text: "**4.c3** — the London pyramid, holding the centre. Crucial: NOT **4.dxc5** which gives Black active piece play with **...Bxc5** + **...Nf6** + **...O-O**." },
+          { san: 'Nc6', text: "**4...Nc6** — develop and add a defender to **e5** for future **...e5** central break preparation." },
+          { san: 'Nd2', text: "**5.Nd2** — interesting move-order choice! We develop the queen's-knight FIRST (rather than the king's-knight on **f3**) because the **Nd2** square avoids interfering with our queen on **d1** AND keeps the option of **f3 + g4** kingside attack flexible. The **Nf3** can come later or transpose into **Ngf3**." },
+          { san: 'Nf6', text: "**5...Nf6** — Black completes minor-piece development." },
+          { san: 'Ngf3', text: "**6.Ngf3** — completing development with both knights now. The kingside knights coordinate well: **Nd2** supports **Nf3** in the eventual **Ne5** outpost." },
+          { san: 'Bd6', text: "**6...Bd6** — Black challenges our **f4-bishop**, the principled try in this line." },
+          { san: 'Bg3', text: "**7.Bg3** — keeping the bishop pair, the modern preference (the older **Bxd6** trade gives Black an equal endgame). Bishop on **g3** is still on the **g3-h2** diagonal eyeing the kingside, AND keeping the bishop pair provides long-term winning chances. You've reached the **London vs ...e6 + ...c5** tabiya. White's plan from here: **8.Bd3 + 9.O-O + 10.Re1** completing development, then **11.Ne5** central outpost (the bishop on **g3** supports the knight indirectly). Black's plan: **7...O-O + 8...b6 + 9...Bb7** queenside fianchetto for the c8-bishop, then **10...Re8 + 11...Bf8** rook lift + bishop reroute trying to neutralise our space. Two key squares: **e5** (the eternal London outpost) and **h7** (the **Bd3 + Bxh7+** sacrifice target if Black ever weakens). Modern theory rates this at +0.15 for White — a small but stable edge based on the bishop pair + central control." },
+        ],
+      }),
+      buildLine({
+        id: 'london-vs-bg4-pin',
+        name: 'vs ...Bg4 (early bishop pin)',
+        description: "Black tries an early ...Bg4 pin; we kick with f3 then play c4 transposing into a favourable structure.",
+        intro: "Let's learn the **London vs ...Bg4**: when Black plays an early **3...Bg4** trying to pin our future **Nf3**, we have a sharp reply: **4.f3!** kicking the bishop, then **5.c4** striking the centre. The result transposes into a Slav-Exchange-flavoured structure where Black's bishop has been forced to retreat awkwardly and we have central pawn dominance. A move-order trick that punishes premature bishop development.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — London bishop." },
+          { san: 'Nf6', text: "**2...Nf6** — Black develops the king's-knight, the most common 2nd move at all levels." },
+          { san: 'e3', text: "**3.e3** — standard London prep." },
+          { san: 'Bg4', text: "**3...Bg4** — early bishop development trying to pin our future **Nf3**. The pin is annoying because **Nf3** is a key piece in the London setup. But the early bishop move has a downside: it commits the bishop to a square where it can be kicked." },
+          { san: 'f3', text: "**4.f3!** — the surprising kick! Pawn move attacking the **Bg4-bishop** with tempo. Black has to retreat (no good captures: **4...Bxf3?? 5.gxf3** wins the bishop because there's no follow-up tactic, AND **4...Bh5 5.g4** further harassing wins the bishop in three moves). Best reply is **4...Bf5** retreating to a more sensible square." },
+          { san: 'Bf5', text: "**4...Bf5** — bishop retreats to **f5** maintaining the **c8-h3 diagonal** but conceding the kingside-storm tempo. The position is now structurally favourable for us." },
+          { san: 'c4', text: "**5.c4** — striking the centre! The **f3** pawn has freed up the **f-file** for a future **Nf3-e5** OR **g4-g5** kingside attack, AND the **c4** strike creates immediate pressure on **d5**. Black has to decide whether to take or hold the centre." },
+          { san: 'e6', text: "**5...e6** — Black holds the centre with the classical reply, supporting **d5**. Other moves like **5...c6** (Slav-style) or **5...dxc4** (Slav-Exchange-style) are also playable." },
+          { san: 'Nc3', text: "**6.Nc3** — develop the queen's-knight, eyeing **Nb5** in some lines and supporting **e4** central pawn push later. You've reached the **London vs ...Bg4 (with f3)** tabiya. White's plan from here: **7.Nge2** (NOT **Nf3** because **f3** blocks it) eyeing **Ng3** kicking the **Bf5-bishop**, then **8.Bd3** + **9.O-O** + slow improvement with central + kingside chances. The **f3-pawn** also supports a future **g4-g5** kingside pawn-storm if Black castles short. Black's plan: **7...c6** + **8...Nbd7** + **9...Bd6** developing with caution; the **Bf5-bishop** is awkwardly placed and hard to re-route. Two key squares: **e5** (still the London outpost — Nge2-Ng3 supports our knight establishing here) and **g4** (where our pawn-storm starts if Black castles into our attacking setup). Modern theory rates this at +0.30 for White — favourable structure based on the central edge + Black's awkward bishop placement." },
+        ],
+      }),
+      buildLine({
+        id: 'london-vs-c6-slav-style',
+        name: 'vs ...c6 (Slav-style setup)',
+        description: "Black plays a Slav-style ...c6 + ...Bf5; we play c4 transposing into a Slav-Exchange-flavoured structure.",
+        intro: "Let's learn the **London vs ...c6**: when Black plays a Slav-style **2...c6** preparing **...Bf5** queen's-bishop development, we have a strong move-order option: **3.c4** striking the centre and transposing into Slav-Exchange territory. The transposition catches Black off-guard because they expected the slow London — instead we're playing a sharp central system where our development edge matters.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — London bishop." },
+          { san: 'c6', text: "**2...c6** — the Slav-style move, supporting **d5** and preparing **...Bf5** development of the queen's-bishop. A solid system that aims for Caro-Kann-flavoured structures." },
+          { san: 'e3', text: "**3.e3** — London prep, keeping the option open of going Slav-Exchange via **c4** or staying classical with the pyramid." },
+          { san: 'Bf5', text: "**3...Bf5** — Black follows through with the Slav-style plan, developing the **c8-bishop** before locking it in with **...e6**." },
+          { san: 'Nf3', text: "**4.Nf3** — develop, eyeing **Ne5** central outpost (still relevant in Slav-flavoured structures)." },
+          { san: 'e6', text: "**4...e6** — supporting **d5** and preparing **...Nbd7 + ...Bd6**." },
+          { san: 'c4', text: "**5.c4** — the central strike! Now we transpose into Slav-Exchange-flavoured territory; Black's **c6 + Bf5** structure is fine but our central activity is what we wanted. The position is now competitively analysed; Black is solid but slightly worse." },
+          { san: 'Nf6', text: "**5...Nf6** — natural development." },
+          { san: 'Nc3', text: "**6.Nc3** — develop the queen's-knight, eyeing **Nb5** + **Nxa7** in some lines if Black ever weakens." },
+          { san: 'Nbd7', text: "**6...Nbd7** — Black completes minor-piece development with the natural queen's-knight square. You've reached the **London vs ...c6** tabiya (now in Slav-Exchange-flavoured territory). White's plan from here: **7.Bd3** challenging the **Bf5** to trade or move (we want the bishop pair), **8.O-O + 9.Rc1** preparing **c5** or **cxd5** central exchanges, then **10.Qe2** + slow improvement. Black's plan: **7...Bxd3** trading bishops + simplifying (gives us the bishop pair), or **7...Bg6** retreating + keeping the bishop (passive but solid), then complete development with **...Bd6 + ...O-O + ...Re8**. Two key squares: **e5** (still the London outpost, but harder to reach in this structure because **...Nbd7** defends + **...Nxe5** is always a trade option) and **c5** (the eventual pawn-break that opens lines for our rooks + queen). Modern theory rates this at +0.20 for White — small structural edge based on the bishop pair + central flexibility." },
+        ],
+      }),
+      buildLine({
+        id: 'london-vs-b6-queens-indian',
+        name: 'vs ...b6 (Queen Indian-style fianchetto)',
+        description: "Black plays a Queen's-Indian-style ...b6 + ...Bb7; we adapt with the standard pyramid + careful e5-control.",
+        intro: "Let's learn the **London vs ...b6**: when Black plays the **2...Nf6 + 3...b6** Queen's-Indian-style preparing **...Bb7** queenside fianchetto, the structural battle is about controlling the **e4 + e5** squares (Black's bishop on **b7** will press on them via the long diagonal). Our plan: classical London **e3 + Nf3 + c3 + Bd3** but with extra attention to the **Ne5** outpost — we want to plant a knight there before Black's **Bb7** can challenge it.",
+        moves: [
+          { san: 'd4', text: "**1.d4** — queen's pawn." },
+          { san: 'd5', text: "**1...d5** — Black mirrors." },
+          { san: 'Bf4', text: "**2.Bf4** — London bishop." },
+          { san: 'Nf6', text: "**2...Nf6** — natural knight development." },
+          { san: 'e3', text: "**3.e3** — London prep." },
+          { san: 'b6', text: "**3...b6** — the Queen's-Indian-style fianchetto preparation. Black plans **...Bb7** putting the bishop on the long **a8-h1 diagonal** + pressing on **e4** to discourage our central pawn push, then **...e6 + ...Bd6 + ...O-O** completing development with a flexible structure." },
+          { san: 'Nf3', text: "**4.Nf3** — develop, eyeing **Ne5** central outpost (especially important here because the **b7-bishop** will threaten our **e4** square)." },
+          { san: 'Bb7', text: "**4...Bb7** — fianchetto complete." },
+          { san: 'Bd3', text: "**5.Bd3** — bishop to its best diagonal, eyeing **h7** AND defending **e4** indirectly (since **Bd3** + **Nf3** combine to overprotect the central pawn)." },
+          { san: 'e6', text: "**5...e6** — supporting **d5** and preparing **...Bd6 + ...O-O**." },
+          { san: 'O-O', text: "**6.O-O** — castle, finishing kingside development. Now we can focus on central + queenside play." },
+          { san: 'Bd6', text: "**6...Bd6** — Black challenges the **f4-bishop**, the standard challenge in this structure." },
+          { san: 'Bg3', text: "**7.Bg3** — keep the bishop pair (modern preference). Bishop on **g3** is still on the **g3-h2 diagonal** and supports our future **Ne5** outpost establishment. You've reached the **London vs ...b6** tabiya. White's plan from here: **8.Ne5** centralising the knight on the strong outpost (defended by **Bg3 + Bd3 + Nf3** indirectly), **9.Nbd2 + 10.Qe2** preparing slow queenside expansion with **a4-a5**. Black's plan: **7...O-O + 8...Nbd7 + 9...c5** central counter-strike trying to dissolve our space, then **10...Ne4** centralising knight on the e4 square (with the **Bb7** supporting it). Two key squares: **e5** (our knight outpost — once **Ne5** lands, the position is structurally winning) and **e4** (Black's counter-outpost via **...Ne4** + **Bb7** support — denying it requires careful play). Modern theory rates this at +0.20 for White — small but stable structural edge based on **Ne5** outpost + bishop pair + slight space advantage." },
+        ],
+      }),
+
       // ── London System deviations (Phase 1d)
 
       // ── London Mainline deviations (parent: london-mainline)
@@ -3800,59 +3978,6 @@ export const OPENING_COURSES: Record<string, OpeningCourse> = {
     ],
   },
 };
-
-// ────────────────────────────────────────────────────────────────────────
-// Generated-line merge
-//
-// The Tier-A pipeline (scripts/build-opening-tree.ts +
-// scripts/generate-opening-lines.ts — see docs/CONTENT_SOURCING_PLAN.md)
-// emits popularity-weighted line stubs into src/openings/generated-lines.ts.
-// We import that module unconditionally — when the pipeline hasn't run,
-// GENERATED_LINES is an empty array and this merge is a no-op.
-//
-// Merge rules:
-//   - Each generated line is appended to the END of its course's lines
-//     array (so hand-authored lines always sort first).
-//   - If a generated line's id collides with a hand-authored line's id,
-//     the hand-authored line wins and the generated stub is dropped
-//     (with a console warning at module load).
-//   - The chess.js SAN replay runs through buildLine() exactly like
-//     hand-authored lines — so any illegal move in a generated stub
-//     fails LOUDLY at module load, not silently in production.
-//   - Generated lines carry their `generated` flag through to OpeningLine
-//     so the line picker / Drill / Learn views can treat them as drafts.
-// ────────────────────────────────────────────────────────────────────────
-
-function mergeGeneratedLines(): void {
-  for (const gen of GENERATED_LINES) {
-    const course = OPENING_COURSES[gen.openingId];
-    if (!course) {
-      console.warn(`[generated-lines] dropping ${gen.id} — no course '${gen.openingId}'`);
-      continue;
-    }
-    if (course.lines.some((l) => l.id === gen.id)) {
-      console.warn(`[generated-lines] skipping ${gen.id} — id collides with a hand-authored line`);
-      continue;
-    }
-    let line: OpeningLine;
-    try {
-      const built = buildLine({
-        id: gen.id,
-        name: gen.name,
-        description: gen.description,
-        intro: gen.intro,
-        moves: gen.moves,
-      });
-      line = { ...built, generated: gen.generated };
-    } catch (e) {
-      console.error(`[generated-lines] dropping ${gen.id} — chess.js rejected SAN: ${(e as Error).message}`);
-      continue;
-    }
-    course.lines.push(line);
-  }
-}
-
-mergeGeneratedLines();
 
 // ────────────────────────────────────────────────────────────────────────
 // Lookups

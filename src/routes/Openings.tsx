@@ -879,15 +879,6 @@ function CourseControlBar({
                           Dev
                         </span>
                       )}
-                      {l.generated !== undefined && (
-                        <span
-                          className="shrink-0 rounded-sm bg-amber-500/15 px-1 py-0 text-[8.5px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300"
-                          aria-label="Auto-generated draft (Tier-A pipeline output, prose needs human review)"
-                          title={`Auto-generated stub from ${l.generated.gamesAtTabiya.toLocaleString()} master games. Prose needs human review before this line ships as polished content.`}
-                        >
-                          Draft
-                        </span>
-                      )}
                       <span className="shrink-0 text-[10px] text-muted-foreground">
                         {l.nodes.length - 1}p
                       </span>

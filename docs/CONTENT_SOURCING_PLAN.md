@@ -8,6 +8,22 @@
 > common move, so the trap line is high-value to teach. We need a
 > pipeline that surfaces these systematically without scraping
 > proprietary sources.
+>
+> **2026-05-01 design pivot.** An earlier version of this plan had
+> the pipeline writing draft `LineSpec` stubs with placeholder prose
+> directly into the courses (with a "Draft" badge). User feedback:
+> shipped content should be polished and hand-authored — the
+> pipeline's job is to surface WHAT to write, not to ship draft
+> content. The current design (re-purposed in commit after `f0cefa4`)
+> keeps the data side of the pipeline but emits a MARKDOWN BACKLOG
+> per opening instead of LineSpec stubs. Authors use the backlog as
+> a research aid and hand-write the lines into `lessons.ts`.
+>
+> First milestone delivered: London course went from 7 lines to 16
+> by hand-authoring the patterns the pipeline would have surfaced
+> (G7 trap, ...f6 punishment, Bf5 + ...b5 trap, vs ...c5 main, vs
+> ...g6, vs ...e6+...c5, vs ...Bg4, vs ...c6 Slav-style, vs ...b6
+> Queen Indian-style). All audit-clean.
 
 ## Sources matrix — what's legally usable
 

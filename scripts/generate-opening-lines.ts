@@ -1,11 +1,19 @@
 #!/usr/bin/env -S node --import tsx
 /*
- * generate-opening-lines.ts — Tier-A content pipeline, step 2 of 2.
+ * generate-opening-lines.ts — content-prioritisation tool (re-purposed
+ * 2026-05-01 from the original "auto-generate draft LineSpecs" design).
  *
- * Reads the frequency tree from `build-opening-tree.ts` and emits
- * popularity-weighted LineSpec stubs for new opening lines. Output
- * is a TypeScript module exporting `LineSpec[]` that gets imported
- * by `src/openings/lessons.ts` and merged with hand-authored lines.
+ * Reads the frequency tree from `build-opening-tree.ts` and emits a
+ * MARKDOWN REPORT per opening listing the most-played positions and
+ * suggested move sequences from real master games. The report is the
+ * AUTHORING BACKLOG for hand-writing new lines into
+ * src/openings/lessons.ts — NOT something that ships to the app.
+ *
+ * Why this changed: an earlier design wrote draft LineSpec stubs with
+ * placeholder prose into src/openings/generated-lines.ts, which were
+ * auto-merged into the courses with a "Draft" badge. The user pushed
+ * back: shipped content should be polished and hand-authored. The
+ * pipeline's job is to surface WHAT to write, not to write itself.
  *
  * See docs/CONTENT_SOURCING_PLAN.md for the full pipeline design.
  *
@@ -13,33 +21,23 @@
  *   ./.dev/wsl-run.sh tsx scripts/generate-opening-lines.ts \
  *     --tree public/opening-tree.json \
  *     --targets scripts/opening-targets.json \
- *     --output src/openings/generated-lines.ts
+ *     --output docs/research/opening-backlog/
  *
- * The targets config drives generation. Example
- * (`scripts/opening-targets.json`):
- *   {
- *     "london-white": {
- *       "rootMoves": ["d4", "d5", "Bf4"],
- *       "branchPlies": 8,
- *       "maxBranchesPerNode": 3,
- *       "minFrequencyPct": 5
- *     }
- *   }
+ * Output: one markdown file per opening in --output dir, e.g.:
+ *   docs/research/opening-backlog/london-white.md
+ *   docs/research/opening-backlog/vienna-white.md
  *
- * For each opening:
- *   1. Walk the tree to the root position via `rootMoves`.
- *   2. BFS-expand: at each node, pick the top `maxBranchesPerNode`
- *      moves with frequency >= `minFrequencyPct`.
- *   3. Each leaf path becomes one LineSpec.
- *   4. Generate factual prose from move frequencies (no
- *      tactical/eval/historical claims — those need human review).
+ * Each report lists the top-N most-played positions reachable from
+ * the opening's root, with frequencies and the move sequences to
+ * reach them. Authors use the report to pick which lines to write.
  *
- * STATUS: scaffolded with working tree-walk + LineSpec emit.
- * Prose templating is intentionally minimal — generated lines
- * are STUBS for human review, not finished content.
+ * STATUS: scaffolded with working tree-walk + markdown emit.
+ * Run on the cloud server after building the opening tree from
+ * the Lichess Masters DB.
  */
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Chess } from 'chess.js';
 
 interface MoveEdge {
@@ -72,19 +70,15 @@ interface CliArgs {
   output: string;
 }
 
-interface GeneratedMove {
-  san: string;
-  text: string;
-}
-interface GeneratedLine {
-  id: string;
-  openingId: string;
-  name: string;
-  description: string;
-  intro: string;
-  moves: GeneratedMove[];
-  /** Provenance — counted at the tabiya position. */
-  generated: { source: 'lichess-masters'; gamesAtTabiya: number };
+interface BacklogEntry {
+  /** Move sequence from the start position to the suggested tabiya. */
+  movesPath: string[];
+  /** Number of master games that reach this position. */
+  gamesAtTabiya: number;
+  /** % at each branch point (joined as a description). */
+  pctAtBranches: number[];
+  /** What to play next at the tabiya, sorted by frequency. */
+  topContinuations: { san: string; pct: number; count: number }[];
 }
 
 function parseArgs(): CliArgs {
@@ -97,7 +91,7 @@ function parseArgs(): CliArgs {
   return {
     tree: get('--tree', 'public/opening-tree.json')!,
     targets: get('--targets', 'scripts/opening-targets.json')!,
-    output: get('--output', 'src/openings/generated-lines.ts')!,
+    output: get('--output', 'docs/research/opening-backlog/')!,
   };
 }
 
@@ -105,11 +99,6 @@ function normFen(fen: string): string {
   return fen.split(' ').slice(0, 4).join(' ');
 }
 
-/**
- * Walk down the tree along `rootMoves`. Return the FEN reached
- * AND the chess.js Chess instance at that point (for further
- * walking) AND the count of games that played the full root.
- */
 function walkToRoot(
   tree: TreeFile,
   rootMoves: string[],
@@ -130,12 +119,8 @@ function walkToRoot(
 }
 
 /**
- * BFS from the root position, picking the top-N moves at each
- * node above the frequency threshold. Each leaf path becomes
- * one generated line.
- *
- * Termination per branch: depth reached, OR no more moves above
- * the threshold (we hit a position with no popular continuation).
+ * BFS from the root position. Each leaf path becomes one backlog entry
+ * with frequency data attached.
  */
 function expandBranches(
   tree: TreeFile,
@@ -144,31 +129,50 @@ function expandBranches(
   branchPlies: number,
   maxBranchesPerNode: number,
   minFrequencyPct: number,
-): { game: Chess; movesPlayed: { san: string; pctAtNode: number; nextFen: string }[]; gamesAtTabiya: number }[] {
+): BacklogEntry[] {
   interface Frontier {
     game: Chess;
-    movesPlayed: { san: string; pctAtNode: number; nextFen: string }[];
+    movesPath: string[];
+    pctAtBranches: number[];
     gamesAtCurrent: number;
   }
   const initial: Frontier = {
     game: new Chess(rootGame.fen()),
-    movesPlayed: [],
+    movesPath: [],
+    pctAtBranches: [],
     gamesAtCurrent: tree.nodes[rootFen]?.totalGames ?? 0,
   };
 
-  const completed: { game: Chess; movesPlayed: Frontier['movesPlayed']; gamesAtTabiya: number }[] = [];
+  const completed: BacklogEntry[] = [];
   const queue: Frontier[] = [initial];
+
+  const buildBacklogEntry = (cur: Frontier): BacklogEntry => {
+    const fenAtTabiya = normFen(cur.game.fen());
+    const tabiyaNode = tree.nodes[fenAtTabiya];
+    const topContinuations: BacklogEntry['topContinuations'] = tabiyaNode
+      ? Object.entries(tabiyaNode.moves)
+          .map(([san, edge]) => ({ san, count: edge.count, pct: (edge.count / tabiyaNode.totalGames) * 100 }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5)
+      : [];
+    return {
+      movesPath: cur.movesPath,
+      gamesAtTabiya: cur.gamesAtCurrent,
+      pctAtBranches: cur.pctAtBranches,
+      topContinuations,
+    };
+  };
 
   while (queue.length > 0) {
     const cur = queue.shift()!;
-    if (cur.movesPlayed.length >= branchPlies) {
-      completed.push({ game: cur.game, movesPlayed: cur.movesPlayed, gamesAtTabiya: cur.gamesAtCurrent });
+    if (cur.movesPath.length >= branchPlies) {
+      completed.push(buildBacklogEntry(cur));
       continue;
     }
     const fen = normFen(cur.game.fen());
     const node = tree.nodes[fen];
     if (!node || node.totalGames === 0) {
-      completed.push({ game: cur.game, movesPlayed: cur.movesPlayed, gamesAtTabiya: cur.gamesAtCurrent });
+      completed.push(buildBacklogEntry(cur));
       continue;
     }
     const sortedMoves = Object.entries(node.moves)
@@ -178,7 +182,7 @@ function expandBranches(
       .slice(0, maxBranchesPerNode);
 
     if (sortedMoves.length === 0) {
-      completed.push({ game: cur.game, movesPlayed: cur.movesPlayed, gamesAtTabiya: cur.gamesAtCurrent });
+      completed.push(buildBacklogEntry(cur));
       continue;
     }
 
@@ -189,7 +193,8 @@ function expandBranches(
       const nextNode = tree.nodes[normFen(childGame.fen())];
       queue.push({
         game: childGame,
-        movesPlayed: [...cur.movesPlayed, { san: m.san, pctAtNode: m.pct, nextFen: m.nextFen }],
+        movesPath: [...cur.movesPath, m.san],
+        pctAtBranches: [...cur.pctAtBranches, m.pct],
         gamesAtCurrent: nextNode?.totalGames ?? 0,
       });
     }
@@ -198,71 +203,54 @@ function expandBranches(
   return completed;
 }
 
-/**
- * Auto-generate prose for a line. STRICTLY factual — only states
- * frequency data that's literally in the tree. No tactical claims,
- * no eval claims, no historical claims. Human review will replace
- * with real teaching prose.
- */
-function generateLine(
-  openingId: string,
-  rootMoves: string[],
-  branch: { game: Chess; movesPlayed: { san: string; pctAtNode: number; nextFen: string }[]; gamesAtTabiya: number },
-  branchIdx: number,
-): GeneratedLine {
-  const allMoves = [...rootMoves, ...branch.movesPlayed.map((m) => m.san)];
-  const linePathStr = allMoves
+function formatMovesPath(rootMoves: string[], branchMoves: string[]): string {
+  const all = [...rootMoves, ...branchMoves];
+  return all
     .map((san, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}.${san}` : san))
     .join(' ');
+}
 
-  // Make a stable line id from the move sequence
-  const moveSlug = allMoves.map((s) => s.replace(/[+#=]/g, '')).join('-').toLowerCase();
-  const id = `${openingId}-gen-${moveSlug}`.slice(0, 80);
+function buildReport(openingId: string, target: OpeningTarget, entries: BacklogEntry[], totalGamesScanned: number): string {
+  const lines: string[] = [];
+  lines.push(`# Authoring backlog: ${openingId}`);
+  lines.push('');
+  lines.push(`> Generated by \`scripts/generate-opening-lines.ts\` from the Lichess Masters DB.`);
+  lines.push(`> Total master games in source: ${totalGamesScanned.toLocaleString()}.`);
+  lines.push(`> Root moves: ${target.rootMoves.join(' ')}.`);
+  lines.push(`> Branch depth: ${target.branchPlies} plies past root, top ${target.maxBranchesPerNode} continuations per node, ≥${target.minFrequencyPct}% frequency cutoff.`);
+  lines.push('');
+  lines.push(`## How to use this report`);
+  lines.push('');
+  lines.push(`Each entry below is a SUGGESTED LINE TO AUTHOR — a position that's actually reached in master games with non-trivial frequency. The "top continuations" tell you what move to teach next at the tabiya. Pick entries by gamesAtTabiya (popularity) + pedagogical value (does it teach a concrete pattern?), write the line into \`src/openings/lessons.ts\` using \`buildLine({ ... })\`, and run \`npm run audit:hung\` + \`npm test\` before committing.`);
+  lines.push('');
+  lines.push(`## Suggested lines (sorted by master-game frequency)`);
+  lines.push('');
 
-  const name = `Generated: ${linePathStr.slice(0, 50)}`;
+  // Sort entries by gamesAtTabiya descending
+  const sorted = [...entries].sort((a, b) => b.gamesAtTabiya - a.gamesAtTabiya);
 
-  const description = `Auto-generated from Lichess Masters DB at ${branch.gamesAtTabiya.toLocaleString()} master games. STUB — needs human review.`;
-
-  const intro = `Auto-generated stub — needs human review before shipping. Move sequence reaches a position played in ${branch.gamesAtTabiya.toLocaleString()} master games. Replace this prose with a real introduction explaining the line's IDEAS (not just the moves).`;
-
-  // Per-move prose: replay in a fresh game so we have move numbers right
-  const replayGame = new Chess();
-  const moves: GeneratedMove[] = [];
-  for (let i = 0; i < rootMoves.length; i++) {
-    const san = rootMoves[i];
-    replayGame.move(san);
-    const moveNum = Math.floor(i / 2) + 1;
-    const prefix = i % 2 === 0 ? `**${moveNum}.${san}**` : `**${moveNum}...${san}**`;
-    moves.push({ san, text: `${prefix} — opening sequence.` });
+  for (let i = 0; i < sorted.length; i++) {
+    const e = sorted[i];
+    const movesStr = formatMovesPath(target.rootMoves, e.movesPath);
+    lines.push(`### ${i + 1}. \`${movesStr}\``);
+    lines.push('');
+    lines.push(`- **Games at tabiya**: ${e.gamesAtTabiya.toLocaleString()}`);
+    if (e.pctAtBranches.length > 0) {
+      const branchPctsStr = e.pctAtBranches.map((p) => `${p.toFixed(1)}%`).join(' → ');
+      lines.push(`- **Branch frequencies**: ${branchPctsStr}`);
+    }
+    if (e.topContinuations.length > 0) {
+      lines.push(`- **Top continuations at this tabiya** (what masters play next):`);
+      for (const c of e.topContinuations) {
+        lines.push(`  - \`${c.san}\` — ${c.count.toLocaleString()} games (${c.pct.toFixed(1)}%)`);
+      }
+    } else {
+      lines.push(`- **Top continuations at this tabiya**: (none — position rarely reached past this depth in the dataset)`);
+    }
+    lines.push('');
   }
-  for (const branchMove of branch.movesPlayed) {
-    const i = moves.length;
-    const moveNum = Math.floor(i / 2) + 1;
-    const prefix = i % 2 === 0 ? `**${moveNum}.${branchMove.san}**` : `**${moveNum}...${branchMove.san}**`;
-    moves.push({
-      san: branchMove.san,
-      text: `${prefix} — played in ${branchMove.pctAtNode.toFixed(1)}% of master games at this position.`,
-    });
-    replayGame.move(branchMove.san);
-  }
 
-  // Tabiya prose (the last move's text gets extended)
-  if (moves.length > 0) {
-    const last = moves[moves.length - 1];
-    last.text +=
-      ` Auto-generated tabiya stub: position reached in ${branch.gamesAtTabiya.toLocaleString()} master games.` +
-      ' Common deviations, key squares, and tactical themes need human authoring before this line ships.';
-  }
-
-  return {
-    id: `${id}-${branchIdx}`,
-    openingId,
-    name,
-    description,
-    intro,
-    moves,
-    generated: { source: 'lichess-masters', gamesAtTabiya: branch.gamesAtTabiya },
-  };
+  return lines.join('\n');
 }
 
 async function main(): Promise<void> {
@@ -272,15 +260,17 @@ async function main(): Promise<void> {
   console.error(`Loading targets from ${args.targets}…`);
   const targets = JSON.parse(await readFile(args.targets, 'utf8')) as TargetsFile;
 
-  const allLines: GeneratedLine[] = [];
+  await mkdir(args.output, { recursive: true });
+
   for (const [openingId, target] of Object.entries(targets)) {
-    console.error(`Processing ${openingId} (rootMoves=[${target.rootMoves.join(',')}])…`);
+    if (openingId.startsWith('_')) continue; // skip JSON-comment keys
+    console.error(`Processing ${openingId}…`);
     const root = walkToRoot(tree, target.rootMoves);
     if (!root) {
       console.error(`  ✗ Could not walk root moves in tree — skipping`);
       continue;
     }
-    const branches = expandBranches(
+    const entries = expandBranches(
       tree,
       root.fen,
       root.game,
@@ -288,42 +278,13 @@ async function main(): Promise<void> {
       target.maxBranchesPerNode,
       target.minFrequencyPct,
     );
-    console.error(`  ${branches.length} branches generated`);
-    for (let i = 0; i < branches.length; i++) {
-      allLines.push(generateLine(openingId, target.rootMoves, branches[i], i));
-    }
+    const report = buildReport(openingId, target, entries, tree.totalGames);
+    const outPath = join(args.output, `${openingId}.md`);
+    await writeFile(outPath, report);
+    console.error(`  ✓ Wrote ${entries.length} backlog entries → ${outPath}`);
   }
 
-  // Emit a TypeScript module that re-exports the generated lines.
-  // The output uses LineSpec-compatible shape; lessons.ts is responsible
-  // for importing + merging with hand-authored lines.
-  const ts = `/*
- * AUTO-GENERATED — do not edit by hand.
- * Generated by scripts/generate-opening-lines.ts on ${new Date().toISOString()}.
- * Source: Lichess Masters DB (CC0).
- * See docs/CONTENT_SOURCING_PLAN.md for the pipeline.
- *
- * These are STUBS — every line in this file needs human review
- * before shipping. The 'generated' flag on each line marks it as
- * draft so the Drill mode can de-prioritise and the Learn view
- * can show a "needs review" badge.
- */
-
-export interface GeneratedLineSpec {
-  id: string;
-  openingId: string;
-  name: string;
-  description: string;
-  intro: string;
-  moves: { san: string; text: string }[];
-  generated: { source: 'lichess-masters'; gamesAtTabiya: number };
-}
-
-export const GENERATED_LINES: GeneratedLineSpec[] = ${JSON.stringify(allLines, null, 2)};
-`;
-
-  await writeFile(args.output, ts);
-  console.error(`✓ Wrote ${allLines.length} generated line stubs to ${args.output}`);
+  console.error('Done. Use the reports as your authoring backlog.');
 }
 
 main().catch((e) => {
