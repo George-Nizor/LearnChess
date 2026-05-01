@@ -22,6 +22,8 @@
     "vendor:piece-sets": "tsx scripts/vendor-piece-sets.ts",
     "vendor:opening-names": "tsx scripts/vendor-opening-names.ts",
     "build:puzzles": "tsx scripts/build-puzzles.ts",
+    "audit:engine": "tsx scripts/build-eval-baseline.ts",
+    "audit:hung": "tsx scripts/audit-hung-pieces.ts",
     "vendor:all": "npm run vendor:engine && npm run vendor:sqlite && npm run vendor:sounds && npm run vendor:piece-sets && npm run vendor:opening-names",
     "setup": "npm run vendor:all && npm run build:puzzles"
   },
