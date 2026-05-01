@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'node_modules', 'public/engine', 'coverage', 'playwright-report', 'test-results', '.dev'],
+    ignores: ['dist', 'node_modules', 'public/engine', 'coverage', 'playwright-report', 'test-results', '.dev', '.claude'],
   },
   // JS files (eslint.config.js itself, etc.) — no typed rules
   {

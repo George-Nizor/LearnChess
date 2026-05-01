@@ -1,17 +1,32 @@
 /*
- * PageTransition — a route-keyed fade for the <Outlet />.
+ * PageTransition — a route-keyed wrapper that forces a clean unmount/remount
+ * on every route change.
  *
- * 2026-04-27 update: dropped `mode="wait"`. The previous version waited for
- * the outgoing page to finish fading before mounting the new one — that
- * created a blank moment where chessground was unmounted, then re-mounted.
- * The new mode lets old + new overlap; the fade still works but the board
- * never disappears completely. We also dropped the duration to 120ms so
- * any residual cross-fade is barely perceptible.
+ * History of this file:
+ *   - v1 (pre-2026-04-27): framer-motion AnimatePresence with mode="wait"
+ *     and a 200ms cross-fade. Caused chessground to unmount-then-remount
+ *     between routes, creating a visible "blank board" moment.
+ *   - v2 (2026-04-27): dropped mode="wait", kept the cross-fade at 120ms.
+ *     This let old + new motion.divs coexist briefly. BUG: both motion.divs
+ *     render <Outlet />, and <Outlet /> reads location from React Router
+ *     context — so BOTH render the NEW route. Two chessground instances
+ *     mount simultaneously, then one is destroyed when the outgoing
+ *     motion.div finally exits. Depending on commit ordering, the surviving
+ *     chessground could end up with detached event listeners and refuse
+ *     to respond to pointerdown until F5.
+ *   - v3 (this file, 2026-04-30): drop the animation library entirely.
+ *     The `key={pageKey}` prop is what does the work — React unmounts the
+ *     previous subtree completely (running every cleanup, including
+ *     chessground.destroy()) BEFORE mounting the new one. There is never
+ *     a moment where two route trees coexist in the DOM, so chessground
+ *     can never end up in a partially-destroyed state.
  *
- * Reduced-motion: useReducedMotion() flips this to a 0ms instant swap so
- * vestibular-disorder users aren't punished for visiting routes.
+ * I tried to keep a short CSS keyframe fade-in for visual polish but it
+ * interacts badly with the parent layout (gets stuck at opacity 0 in some
+ * navigation flows). The instant swap is barely perceptible — under
+ * 16ms in practice — and a hard guarantee against the bug recurring is
+ * worth more than 120ms of fade.
  */
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type { ReactNode } from 'react';
 
 interface PageTransitionProps {
@@ -21,21 +36,9 @@ interface PageTransitionProps {
 }
 
 export function PageTransition({ pageKey, children }: PageTransitionProps) {
-  const reduce = useReducedMotion();
-  const duration = reduce ? 0 : 0.12;
-
   return (
-    <AnimatePresence initial={false}>
-      <motion.div
-        key={pageKey}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration, ease: 'easeOut' }}
-        style={{ height: '100%', minHeight: 0 }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <div key={pageKey} className="h-full min-h-0">
+      {children}
+    </div>
   );
 }
