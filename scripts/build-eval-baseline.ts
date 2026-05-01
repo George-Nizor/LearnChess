@@ -25,13 +25,42 @@
  * src/openings/lessons.ts. The output JSON is committed so reviews
  * see eval drift in PR diffs.
  *
+ * STATUS: scaffolded but not yet runnable end-to-end. See "Runtime
+ * gap" below for what's needed to wire up the engine.
+ *
  * Implementation notes:
  *
  * Stockfish in Node is fiddly. The npm `stockfish` package bundles
- * a WASM build that's designed primarily for browser use; piping
- * UCI commands via stdin/stdout requires the native binary OR the
- * `stockfish` package's Node entrypoint. We use the latter via
- * dynamic import — it spawns a Web Worker shim that talks UCI.
+ * a WASM build that's designed primarily for browser use:
+ *   - The package.json `main` field points at a non-existent file
+ *     (src/stockfish.js); the actual file is
+ *     src/stockfish-nnue-16-single.js.
+ *   - When that file is required as a CommonJS module it exports a
+ *     factory function, but the factory's resolved module object
+ *     doesn't expose `addMessageListener` / `postMessage` in the
+ *     way the documentation suggests (verified by probing on
+ *     2026-05-01: factory returns itself, no methods).
+ *   - When run as a child process via `node ...stockfish-nnue-16-
+ *     single.js`, it sets up readline for interactive UCI but
+ *     doesn't read piped stdin — verified empirically (commands
+ *     send to stdin are ignored after the version banner).
+ *
+ * Runtime gap — three viable paths to actually run this:
+ *   1. **Native Stockfish binary**: install `stockfish` via apt /
+ *      brew on the cloud server and replace `loadStockfish()` to
+ *      `child_process.spawn('stockfish', ...)`. ~30 lines of
+ *      change. RECOMMENDED for the cloud server.
+ *   2. **worker_threads shim**: implement a Web Worker shim using
+ *      Node's `worker_threads` module so the WASM bundle can run
+ *      in a thread. ~150 lines. Cross-platform but more code.
+ *   3. **Headless browser**: drive the existing browser-side
+ *      StockfishEngine via Puppeteer / Playwright. Reuses the
+ *      tested-in-prod engine path. ~80 lines + heavy new dep.
+ *
+ * For now the loadStockfish() factory below tries option 4 (npm
+ * package factory) which DOES NOT WORK — kept as a placeholder
+ * showing the intended shape. Replace with one of the three
+ * options above when actually wiring this up.
  *
  * For each FEN the routine:
  *   1. uci → wait for `uciok`

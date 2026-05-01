@@ -41,6 +41,27 @@ interface Hang {
   fenBefore: string;
 }
 
+/**
+ * Allowlist of (line-id, ply, san) tuples that are documented sacrifices.
+ * Mirrors KNOWN_SACRIFICES in tests/unit/openings/hungPieces.test.ts —
+ * keep the two in sync. Each entry needs a comment justifying why the
+ * sacrifice is sound or famous.
+ */
+const KNOWN_SACRIFICES = new Set<string>([
+  // Traxler 5...Bxf2+ — famous Karel Traxler bishop sacrifice (1890s).
+  // Black drags the king to f2 and follows up with Nxe4+ + Qh4. After
+  // 6.Kf1! (the new mainline as of commit 52bba8a) the sacrifice fails
+  // and White is just up a piece. Allowlisted because the move IS a
+  // sacrifice — the audit's depth-1 SEE can't see the bishop is
+  // refused. Prose explains the refutation explicitly.
+  'traxler-counterattack:10:Bxf2+',
+  // Vienna Falkbeer-style 3...Nxe4 — Frankenstein-Dracula tactic.
+  // After 4.Nxe4 d5 the bishop AND knight are forked, so Black recovers
+  // the piece. Depth-1 SEE flags the knight as hung but the d5 fork
+  // recovers material. Prose walks through the recovery explicitly.
+  'vienna-falkbeer:6:Nxe4',
+]);
+
 const hangs: Hang[] = [];
 
 for (const [openingId, course] of Object.entries(OPENING_COURSES)) {
@@ -85,6 +106,8 @@ for (const [openingId, course] of Object.entries(OPENING_COURSES)) {
         // good enough — real hangs flag at depth 1.
         const netForUs = ownGain - movedPieceValue + bestRecaptureGain;
         if (netForUs < 0) {
+          const allowKey = `${line.id}:${i}:${node.san}`;
+          if (KNOWN_SACRIFICES.has(allowKey)) break;
           hangs.push({
             course: openingId,
             line: line.id,
