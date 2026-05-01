@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Chess } from 'chess.js';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Chessground } from '@/chess/board';
 import { OPENINGS } from '@/chess/openings/book';
 import { isPromotion, lastMoveSquares, legalDests, turnColor } from '@/chess/rules';
@@ -1070,39 +1070,40 @@ function CourseDetail({ repertoire, course, onBack }: CourseDetailProps): ReactN
 
       {/* Mode body fills the remaining viewport height. Each mode view
           assumes h-full and lays itself out internally; the board sizes
-          to the smaller of (this container's height, available width). */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={`${repertoire.id}-${activeLineId ?? 'none'}-${mode}`}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="min-h-0 flex-1"
-        >
-          {mode === 'learn' && course && activeLine && (
-            <LearnView
-              course={course}
-              line={activeLine}
-              repertoireId={repertoire.id}
-              initialNodeIdx={Math.min(activeLineProgress?.discoveredNodeIdx ?? 0, activeLine.nodes.length - 1)}
-              onProgress={(idx) => void handleLearnProgress(idx)}
-            />
-          )}
-          {mode === 'drill' && (
-            <DrillView repertoire={repertoire} line={activeLine} onMastery={() => void refreshStats()} />
-          )}
-          {mode === 'explore' && (
-            <ExploreView repertoire={repertoire} line={activeLine} />
-          )}
-          {mode === 'puzzles' && (
-            <PuzzlesView repertoire={repertoire} />
-          )}
-          {mode === 'test' && (
-            <OpeningsTestView repertoire={repertoire} />
-          )}
-        </motion.div>
-      </AnimatePresence>
+          to the smaller of (this container's height, available width).
+
+          The wrapper uses key={...mode} so React fully unmounts the
+          previous mode's tree before mounting the new one — guarantees
+          chessground gets exactly one destroy() + one create() per
+          mode switch with no overlap. We dropped the framer-motion
+          AnimatePresence + mode="wait" cross-fade because the OUT
+          animation could get stuck (chessground destroys + StrictMode
+          double-invokes triggered the same overlap pathology that
+          broke route-nav in PageTransition). Instant mode swap is
+          sub-frame in practice and bulletproof against the bug. */}
+      <div key={`${repertoire.id}-${activeLineId ?? 'none'}-${mode}`} className="min-h-0 flex-1">
+        {mode === 'learn' && course && activeLine && (
+          <LearnView
+            course={course}
+            line={activeLine}
+            repertoireId={repertoire.id}
+            initialNodeIdx={Math.min(activeLineProgress?.discoveredNodeIdx ?? 0, activeLine.nodes.length - 1)}
+            onProgress={(idx) => void handleLearnProgress(idx)}
+          />
+        )}
+        {mode === 'drill' && (
+          <DrillView repertoire={repertoire} line={activeLine} onMastery={() => void refreshStats()} />
+        )}
+        {mode === 'explore' && (
+          <ExploreView repertoire={repertoire} line={activeLine} />
+        )}
+        {mode === 'puzzles' && (
+          <PuzzlesView repertoire={repertoire} />
+        )}
+        {mode === 'test' && (
+          <OpeningsTestView repertoire={repertoire} />
+        )}
+      </div>
     </div>
   );
 }

@@ -319,6 +319,32 @@ export function Analysis() {
     return { history: [], currentPly: 0, rootFen: STARTING_FEN };
   });
 
+  // Sync rootFen with the URL's ?fen= param on every change. The
+  // useReducer lazy initializer ONLY runs once at mount, so without
+  // this effect a user already on /analysis who clicks an Explore
+  // "Open Analysis Board →" link for a different line keeps the OLD
+  // rootFen — the URL changes, the side-to-move on the URL changes,
+  // but the board state stays on the previous position. This is the
+  // 2026-05-01 user-reported bug ("explore option not preserving who
+  // has the next move"). Dispatching reset here keeps board, side-to-
+  // move, orientation, and history all in sync with the URL.
+  useEffect(() => {
+    const queryFen = searchParams.get('fen');
+    if (!queryFen) return;
+    if (queryFen === hState.rootFen && hState.history.length === 0) return;
+    try {
+      if (validateFen(queryFen).ok) {
+        dispatch({ type: 'reset', rootFen: queryFen });
+      }
+    } catch {
+      // ignore — keep current state
+    }
+    // hState.rootFen / history are intentionally not deps — we only
+    // re-sync when the URL changes, not when the user navigates within
+    // the analysis (that would clobber their move history).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const currentFen = fenAtPly(hState);
 
   const [multiPv, setMultiPv] = useState<MultiPvCount>(DEFAULT_MULTIPV);
