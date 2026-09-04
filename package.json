@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "vendor:engine": "tsx scripts/vendor-engine.ts",
+    "vendor:fonts": "tsx scripts/vendor-fonts.ts",
     "vendor:sqlite": "tsx scripts/vendor-sqlite.ts",
     "vendor:sounds": "tsx scripts/vendor-sounds.ts",
     "vendor:piece-sets": "tsx scripts/vendor-piece-sets.ts",
@@ -26,8 +27,9 @@
     "audit:hung": "tsx scripts/audit-hung-pieces.ts",
     "content:tree": "tsx scripts/build-opening-tree.ts",
     "content:gen": "tsx scripts/generate-opening-lines.ts",
-    "vendor:all": "npm run vendor:engine && npm run vendor:sqlite && npm run vendor:sounds && npm run vendor:piece-sets && npm run vendor:opening-names",
-    "setup": "npm run vendor:all && npm run build:puzzles"
+    "vendor:all": "npm run vendor:engine && npm run vendor:fonts && npm run vendor:sqlite && npm run vendor:sounds && npm run vendor:piece-sets && npm run vendor:opening-names",
+    "setup": "npm run vendor:all && npm run build:puzzles",
+    "brand": "python3 scripts/render-brand-mark.py --out public/brand"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "^3.47.0-build1",

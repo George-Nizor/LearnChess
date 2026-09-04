@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "learnchess",
+  "displayName": "LearnChess",
+  "kind": "web",
+  "adapter": "web-vite",
+  "versionSource": {
+    "type": "package-json",
+    "path": "package.json"
+  },
+  "build": {
+    "output": "dist",
+    "command": "npm run build"
+  },
+  "launch": {
+    "type": "web",
+    "root": "dist",
+    "port": 49324,
+    "fallbackPort": 45024,
+    "entry": "index.html",
+    "health": "learnchess"
+  },
+  "assets": {
+    "mark": "public/brand/learnchess-app-art.png"
+  }
+}

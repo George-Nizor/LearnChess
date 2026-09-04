@@ -23,6 +23,8 @@ Stockfish is also GPL but it is **not** bundled — see "Stockfish isolation pat
 | chessground 9.2.1 | GPL-3.0-or-later | **bundled** (imported into our JS) | Forces our app to be GPL-3.0-compatible. |
 | stockfish 18.0.7 (nmrugg WASM build) | GPL-3.0 | **isolated** (separate WASM in Web Worker) | None on our app code — see isolation pattern below. |
 | chess.js 1.4.0 | BSD-2-Clause | bundled | Permissive — attribution only. |
+| Fraunces | SIL OFL 1.1 | vendored into `public/fonts/` | Permissive. Redistribution is allowed; the licence ships beside the files. |
+| JetBrains Mono | SIL OFL 1.1 | vendored into `public/fonts/` | Permissive. Same. |
 | react / react-dom 19.2.5 | MIT | bundled | Permissive — attribution only. |
 | vite 8.0.10 | MIT | build-only | Permissive. |
 | tailwindcss 4.2.4 | MIT | build-only | Permissive. |
@@ -97,3 +99,32 @@ All chess data we consume from Lichess is **CC0 / public domain** — no attribu
 The board UX is the work of the Lichess team. The puzzle dataset is the collective work of the Lichess community (millions of player attempts ratifying each puzzle's rating). Stockfish is the work of the Stockfish project contributors. None of this would exist without them.
 
 A `CREDITS.md` (or in-app About page) will surface these acknowledgements in the shipped product.
+
+---
+
+## Vendored fonts
+
+`npm run vendor:fonts` downloads Fraunces and JetBrains Mono from Google Fonts into
+`public/fonts/`, renames each file after its family, weight, and subset, and writes a local
+`fonts.css` that `index.html` links instead of `fonts.googleapis.com`. Only the `latin` and
+`latin-ext` cuts are kept.
+
+Both families are SIL Open Font License 1.1, which permits redistribution. Each family's licence
+text is fetched alongside the files as `public/fonts/OFL-Fraunces.txt` and
+`public/fonts/OFL-JetBrainsMono.txt`, so the copy in this repository carries its own terms.
+
+Two reasons for vendoring rather than linking. The app is offline-first after first load, and a
+font fetched from a third party is the one asset that is not. And inside Instrumenta the build is
+served under a Content-Security-Policy with `default-src 'none'`, where a third-party stylesheet
+and font host are both blocked outright.
+
+## Distribution inside Instrumenta
+
+Instrumenta's launcher is MIT, and LearnChess is GPL-3.0-or-later. Shipping this build inside the
+Instrumenta installer is aggregation on a distribution medium — the launcher serves these files
+over loopback HTTP to a browser window and links against none of them — so the launcher's own
+licence is unaffected.
+
+The obligation that does travel is the GPL's: anyone distributing an Instrumenta installer
+containing LearnChess distributes GPL-licensed work and must be able to provide the corresponding
+source. Since both repositories are published, pointing at them satisfies it.

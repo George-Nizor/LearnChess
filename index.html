@@ -16,13 +16,18 @@
          user explicitly asked for the heading font to extend across
          the body too rather than mixing serif headers with sans body.
          JetBrains Mono is the monospace for FEN / PGN / move counters.
-         Pre-connect for the handshake; display=swap so the system
-         fallback renders immediately and we don't FOIT. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+         Served from /fonts rather than fonts.googleapis.com. The app is
+         offline-first, and inside Instrumenta it runs under a CSP with
+         default-src 'none', where a third-party stylesheet and font host
+         are both blocked. Regenerate with `npm run vendor:fonts`. -->
+    <link rel="stylesheet" href="/fonts/fonts.css" />
     <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/fraunces-400-latin.woff2"
+      crossorigin
     />
 
     <title>LearnChess — Train tactics, openings & endgames offline</title>
@@ -30,21 +35,12 @@
     <!-- Zero-FOUC theme bootstrap. Reads the persisted choice (or the OS
          preference if no choice yet) and flips the .dark class BEFORE the
          first paint, so the body's `bg-background` is correct from frame 1.
-         Inline because it must run synchronously, before main.tsx executes. -->
-    <script>
-      (function () {
-        try {
-          var stored = localStorage.getItem('learnchess.theme');
-          var prefersDark =
-            window.matchMedia &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var dark = stored === 'dark' || (!stored && prefersDark);
-          if (dark) document.documentElement.classList.add('dark');
-        } catch (e) {
-          /* localStorage unavailable — fall back to OS preference only. */
-        }
-      })();
-    </script>
+
+         A separate file rather than an inline script, and not deferred: a
+         classic <script src> in <head> still blocks parsing, so it runs
+         before the first paint just as an inline one did, and it keeps
+         script-src at 'self' under Instrumenta's CSP. -->
+    <script src="/theme-bootstrap.js"></script>
   </head>
   <body class="bg-background text-foreground antialiased">
     <div id="root"></div>

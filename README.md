@@ -1,6 +1,6 @@
 # LearnChess
 
-![LearnChess](docs/screenshots/banner.png)
+![LearnChess banner](docs/images/learnchess-banner.png)
 
 I didn't want to pay to practice openings so I made something myself, using claude code, which costs way more, but I had it anyway so it's fine!!
 
@@ -12,6 +12,9 @@ A self-hosted chess learning app you run in a browser. No accounts, no subscript
 - **Tactics** — solve real Lichess puzzles, ratings move with you (Glicko-lite), filter by theme or opening.
 - **Openings** — drill a curated repertoire (13 named openings, 96 tabiyas) with spaced repetition.
 - **Endgames** — work through canonical endings, graded by Lichess's tablebase.
+
+It is also one of the applications [Instrumenta](../Instrumenta) covers, where it opens as a
+sandboxed desktop window served by the launcher. Nothing about that changes the browser build.
 
 Everything runs in the browser. Per-user state (puzzle history, opening progress, ratings) lives in IndexedDB. The only external call is the Lichess tablebase API for endgame verdicts — and that's read-only, no auth, fine to run offline-mostly behind a homelab reverse proxy.
 

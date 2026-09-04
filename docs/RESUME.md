@@ -191,7 +191,7 @@ popular variations (`Pirc_Defense_Austrian_Attack`,
 To pick up:
 
 ```bash
-cd /workspace/dev_projects_master/_PersonalProjects/LearnChess
+cd /workspace/dev_projects_master/_PersonalProjects/Instrumenta/LearnChess
 git status   # should be clean on main
 git log --oneline -10   # confirm last commit is 4e8f708 (Pirc rewrite)
 ./.dev/wsl-run.sh npm run dev -- --host 127.0.0.1 --port 5180 --strictPort

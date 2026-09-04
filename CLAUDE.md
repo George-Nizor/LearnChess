@@ -44,6 +44,60 @@ All versions verified live against npm on 2026-04-26.
 - Lichess OAuth (only needed if/when we expose the Opening Explorer live; v1 ships with a pre-built offline opening book derived from the PGN dump).
 - Service-worker offline cache. Browser HTTP cache + IndexedDB persistence give us most of the win without the SW complexity.
 
+
+---
+
+## Instrumenta integration (added 2026-08-26)
+
+LearnChess is the seventh product in the [Instrumenta](../Instrumenta) suite, registered as a
+`web-vite` product — the same adapter Imago uses. Instrumenta builds `dist/`, stages it inside its
+own installer, and serves it over loopback to a sandboxed Electron window. There is no separate
+LearnChess executable, and the browser and Docker builds are unchanged.
+
+`instrumenta/product.json` declares port 49324 and `health: "learnchess"`, which names the
+Content-Security-Policy profile the launcher serves the build under.
+
+### What the launcher's build audit refuses
+
+`auditWebBuild` in `Instrumenta/electron/static-server.cjs` rejects a build with an inline
+`<script>`, an inline event handler, or any `src`/`href` carrying a scheme. Two things changed to
+satisfy it, and both are worth keeping regardless:
+
+1. **The theme bootstrap moved to `public/theme-bootstrap.js`.** A classic `<script src>` in
+   `<head>` still blocks parsing, so it runs before the first paint exactly as the inline version
+   did, and `script-src` stays at `'self'`.
+2. **The fonts are vendored.** `npm run vendor:fonts` writes `public/fonts/`; see
+   [`LICENSES.md`](LICENSES.md).
+
+The audit also asserts the build contains WASM, `puzzles.db`, and a `.woff2` — a build missing any
+of them starts, looks right, and fails the first time a learner asks it to do anything.
+
+### The Content-Security-Policy
+
+`connect-src` allows exactly one outward host, `https://tablebase.lichess.ovh`, for the endgame
+trainer's WDL/DTZ verdicts. It is the only outward destination in the whole Instrumenta suite. The
+engine, the puzzle database, and the opening book are all local.
+
+`style-src` needs `'unsafe-inline'` because chessground positions every piece with a `style`
+attribute. `script-src` needs `blob:` and `'wasm-unsafe-eval'` for Stockfish and sqlite-wasm.
+
+### Branding
+
+`npm run brand` renders the mark. `scripts/render-brand-mark.py` models a rook as a surface of
+revolution with four separately built merlons, lights it, and rasterises it to a transparent RGBA
+PNG — no modelling package, no image generation, nothing traced. `--banner` also composes the
+1600×500 README banner around the same unaltered mark.
+
+Accent emerald `#2FA85F`, registered in `Instrumenta/brand/tokens.json`. The flat white rook in
+`public/favicon.svg` stays as it is: it is designed to read at 16 px against unpredictable browser
+chrome, which a shaded 3D render does not.
+
+### Size
+
+`dist/` is about 150 MB — 85 MB of NNUE networks, 55 MB of puzzles, 8 MB of application code — and
+it is baked into the Instrumenta installer. Worth knowing before wondering where the installer size
+went.
+
 ---
 
 ## Critical operational notes (don't get burned by these)

@@ -18,6 +18,16 @@ export default tseslint.config(
       globals: { ...globals.node },
     },
   },
+  // Scripts served to the browser from public/ rather than bundled. Same language, different
+  // globals: these run in a page, not in Node.
+  {
+    files: ['public/**/*.js'],
+    ...js.configs.recommended,
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: { ...globals.browser },
+    },
+  },
   // TS/TSX — typed rules with parserOptions.project
   {
     files: ['**/*.{ts,tsx}'],
