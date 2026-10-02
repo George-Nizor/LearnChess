@@ -12,14 +12,12 @@
  */
 import { create } from 'zustand';
 
-export type PieceSetId = 'cburnett' | 'merida' | 'alpha' | 'pirouetti' | 'tatiana';
+export type PieceSetId = 'cburnett' | 'merida' | 'pirouetti';
 
 export const PIECE_SETS: ReadonlyArray<{ id: PieceSetId; label: string; description: string }> = [
   { id: 'cburnett',  label: 'CBurnett',  description: 'Lichess default — clean line art (bundled).' },
   { id: 'merida',    label: 'Merida',    description: 'Bold classic, popular tournament shapes.' },
-  { id: 'alpha',     label: 'Alpha',     description: 'Stylised, slightly chunkier.' },
   { id: 'pirouetti', label: 'Pirouetti', description: 'Elegant flowing lines.' },
-  { id: 'tatiana',   label: 'Tatiana',   description: 'Modern, distinctive silhouettes.' },
 ];
 
 const STORAGE_KEY = 'learnchess.pieceSet';

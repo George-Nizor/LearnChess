@@ -1,7 +1,5 @@
-Source for the Stockfish artifacts in this directory:
-
-  Upstream Stockfish:        https://github.com/official-stockfish/Stockfish
-  WASM packaging (nmrugg):   https://github.com/nmrugg/stockfish.js
-  npm package:               https://www.npmjs.com/package/stockfish
-
-Vendored at build time by scripts/vendor-engine.ts from node_modules/stockfish/.
+Stockfish.js 16.0.0, GPL-3.0. Unmodified JS/WASM and NNUE from the locked npm package.
+Corresponding C++ sources, build files and network files accompany this release:
+https://github.com/George-Nizor/LearnChess/releases/download/v0.1.1/LearnChess-0.1.1-sources.zip
+Upstream: https://github.com/nmrugg/stockfish.js
+Package: https://registry.npmjs.org/stockfish/-/stockfish-16.0.0.tgz

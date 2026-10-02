@@ -1,0 +1,26 @@
+[
+  {
+    "name": "chessground",
+    "version": "9.2.1",
+    "url": "https://codeload.github.com/lichess-org/chessground/tar.gz/7179b0e472ffafa397a4a5db7aeffb8fdcdb7ac5",
+    "asset": "chessground-9.2.1-source.tar.gz",
+    "sha256": "af1e3f526549436b295cb632f42e49e484921cc1df12ce8793bc388606b0fc6d",
+    "gitHead": "7179b0e472ffafa397a4a5db7aeffb8fdcdb7ac5"
+  },
+  {
+    "name": "stockfish",
+    "version": "16.0.0",
+    "url": "https://registry.npmjs.org/stockfish/-/stockfish-16.0.0.tgz",
+    "asset": "stockfish-16.0.0.tgz",
+    "sha256": "033fd3c8b07b7d8906a081416b8683d1403dffa0e57958cfc744e0f3726aaa60",
+    "gitHead": "efc5758a1cf72ec7644fa771a1f17fcbfdae410e"
+  },
+  {
+    "name": "stockfish.js source",
+    "version": "16.0.0",
+    "url": "https://codeload.github.com/nmrugg/stockfish.js/tar.gz/efc5758a1cf72ec7644fa771a1f17fcbfdae410e",
+    "asset": "stockfish-js-16.0.0-source.tar.gz",
+    "sha256": "e9334f6baec2a83f93a21fe90345a0aaf837a42ba0bd04813d9b051104b7568f",
+    "gitHead": "efc5758a1cf72ec7644fa771a1f17fcbfdae410e"
+  }
+]

@@ -5,13 +5,11 @@
  * BAKED IN — so we MUST preserve original names. We also write engine.json
  * pointing at the JS entry, which StockfishEngine.ts reads at runtime.
  *
- * Why we don't `import` Stockfish from src/:
- *   GPL-3.0. Bundling would propagate GPL into our entire app bundle. Loading
- *   it as a separate runtime artifact across a process boundary (Web Worker +
- *   UCI text) keeps the licensing boundary clean. See LICENSES.md.
+ * The engine is a separate Web Worker communicating over UCI. LearnChess is
+ * GPL-3.0-or-later; the release includes full notices and corresponding source.
  */
 
-import { existsSync, mkdirSync, readdirSync, copyFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, copyFileSync, statSync, writeFileSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -68,31 +66,19 @@ function ensureDir(dir: string): void {
 }
 
 function writeLicenseFiles(): void {
-  const licensePath = join(TARGET_DIR, 'LICENSE.GPL');
-  const sourcesPath = join(TARGET_DIR, 'STOCKFISH-SOURCES.txt');
-
-  if (!existsSync(licensePath)) {
-    writeFileSync(
-      licensePath,
-      `Stockfish is licensed under GPL-3.0.
-
-Full text: https://www.gnu.org/licenses/gpl-3.0.txt
-Upstream sources: see STOCKFISH-SOURCES.txt
-`,
-    );
-  }
-
-  writeFileSync(
-    sourcesPath,
-    `Source for the Stockfish artifacts in this directory:
-
-  Upstream Stockfish:        https://github.com/official-stockfish/Stockfish
-  WASM packaging (nmrugg):   https://github.com/nmrugg/stockfish.js
-  npm package:               https://www.npmjs.com/package/stockfish
-
-Vendored at build time by scripts/vendor-engine.ts from node_modules/stockfish/.
-`,
-  );
+  const files = findFilesRecursive(STOCKFISH_PKG_DIR);
+  const licence = files.find(f => /^(copying|license)(\.txt)?$/i.test(basename(f)));
+  if (!licence) throw new Error('Stockfish package is missing its licence');
+  writeFileSync(join(TARGET_DIR, 'LICENSE.GPL'), readFileSync(licence, 'utf8').replace(/\r\n/g, '\n'));
+  const version = JSON.parse(readFileSync(join(STOCKFISH_PKG_DIR, 'package.json'), 'utf8')).version;
+  const appVersion = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version;
+  writeFileSync(join(TARGET_DIR, 'STOCKFISH-SOURCES.txt'),
+    `Stockfish.js ${version}, GPL-3.0. Unmodified JS/WASM and NNUE from the locked npm package.
+Corresponding C++ sources, build files and network files accompany this release:
+https://github.com/George-Nizor/LearnChess/releases/download/v${appVersion}/LearnChess-${appVersion}-sources.zip
+Upstream: https://github.com/nmrugg/stockfish.js
+Package: https://registry.npmjs.org/stockfish/-/stockfish-${version}.tgz
+`);
 }
 
 function main(): void {

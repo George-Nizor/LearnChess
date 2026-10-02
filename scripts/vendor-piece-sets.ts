@@ -1,8 +1,8 @@
 /**
  * vendor-piece-sets.ts
  *
- * Downloads chess piece SVGs from the Lichess `lila` repository (GPL-3.0,
- * compatible with our project licence) into `public/piece-sets/<set>/`.
+ * Downloads chess piece SVGs from the Lichess `lila` repository (GPL-2.0-or-later for CBurnett/Merida,
+ * AGPL-3.0-or-later for Pirouetti; see public/licenses) into `public/piece-sets/<set>/`.
  *
  * Each set is a folder of 12 SVGs named `{w,b}{P,N,B,R,Q,K}.svg`. The
  * accompanying CSS in `public/piece-sets/<set>.css` references these URLs
@@ -24,7 +24,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TARGET_DIR = join(REPO_ROOT, 'public', 'piece-sets');
 const BASE = 'https://raw.githubusercontent.com/lichess-org/lila/master/public/piece';
 
-const SETS = ['cburnett', 'merida', 'alpha', 'pirouetti', 'tatiana'] as const;
+const SETS = ['cburnett', 'merida', 'pirouetti'] as const;
 const PIECES = [
   'wK','wQ','wR','wB','wN','wP',
   'bK','bQ','bR','bB','bN','bP',

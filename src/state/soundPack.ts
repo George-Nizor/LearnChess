@@ -1,5 +1,5 @@
 /*
- * Sound-pack store — controls which `/sounds/<pack>/*.mp3` is played by
+ * Sound-pack store — controls which `/sounds/<pack>/*.wav` is played by
  * `src/sound/index.ts`. Persisted to localStorage so the choice survives
  * a page reload. Standard is the default; if a pack 404s the runtime falls
  * back to synthesised WebAudio tones (handled in src/sound/index.ts).
@@ -9,9 +9,9 @@ import { create } from 'zustand';
 export type SoundPackId = 'standard' | 'piano' | 'nes' | 'futuristic';
 
 export const SOUND_PACKS: ReadonlyArray<{ id: SoundPackId; label: string; description: string }> = [
-  { id: 'standard',   label: 'Standard',   description: 'Lichess default — soft tactile clicks.' },
-  { id: 'piano',      label: 'Piano',      description: 'Warm piano notes per move.' },
-  { id: 'nes',        label: 'NES',        description: '8-bit retro effects (chess.com vibe).' },
+  { id: 'standard',   label: 'Standard',   description: 'Soft, short tonal clicks.' },
+  { id: 'piano',      label: 'Piano',      description: 'Warm, bell-like notes per move.' },
+  { id: 'nes',        label: 'NES',        description: '8-bit style square-wave effects.' },
   { id: 'futuristic', label: 'Futuristic', description: 'Synth blips and beeps.' },
 ];
 

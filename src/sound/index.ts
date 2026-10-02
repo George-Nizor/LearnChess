@@ -4,8 +4,8 @@
  * Strategy:
  *   1. The active sound pack lives in `src/state/soundPack.ts`. On each
  *      playSound call we look up the pack and resolve the URL
- *      `/sounds/<pack>/<kind>.mp3` (with a fallback to the legacy flat
- *      `/sounds/<kind>.mp3` path for the `standard` pack — kept so older
+ *      `/sounds/<pack>/<kind>.wav` (with a fallback to the legacy flat
+ *      `/sounds/<kind>.wav` path for the `standard` pack — kept so older
  *      vendored files still play even if `npm run vendor:sounds` hasn't
  *      been re-run since this update).
  *   2. The HTMLAudioElement cache is keyed by `<pack>:<kind>` so swapping
@@ -37,10 +37,10 @@ export function soundForMove(move: MoveSummary): SoundKind {
 }
 
 const FILE_NAMES: Record<SoundKind, string> = {
-  move: 'move.mp3',
-  capture: 'capture.mp3',
-  check: 'check.mp3',
-  gameEnd: 'genericNotify.mp3',
+  move: 'move.wav',
+  capture: 'capture.wav',
+  check: 'check.wav',
+  gameEnd: 'genericNotify.wav',
 };
 
 function urlsFor(pack: SoundPackId, kind: SoundKind): string[] {

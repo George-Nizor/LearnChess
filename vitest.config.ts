@@ -1,13 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
-/*
- * No @vitejs/plugin-react here on purpose: vitest 2.x bundles its own copy of
- * vite, which makes its plugin-option type incompatible with the top-level
- * vite. JSX/TSX transforms in tests are handled by esbuild via the `esbuild`
- * options below, which is enough for component rendering with @testing-library.
- * If we ever need Fast Refresh in a test (we don't), revisit.
- */
+// Unit tests use esbuild for JSX transforms; the production build uses the React plugin.
 
 export default defineConfig({
   resolve: {
