@@ -2,6 +2,8 @@
 
 ![LearnChess banner](docs/images/learnchess-banner.png)
 
+<p align="center"><img src="docs/brand/learnchess-animated.svg" alt="LearnChess rook" width="96" /></p>
+
 I didn't want to pay to practice openings so I made something myself, using claude code, which costs way more, but I had it anyway so it's fine!!
 
 ## What it is
@@ -206,3 +208,7 @@ GPL-3.0-or-later. Forced by chessground (GPL bundled into the JS). Stockfish is 
 - [chess.js](https://github.com/jhlywa/chess.js) — move generator
 - [chessdriller](https://github.com/gtim/chessdriller) — opening drill UX inspiration
 - [Chessable](https://www.chessable.com), [chessreps](https://chessreps.com), [Listudy](https://listudy.org) — competitor research that shaped the line picker + Learn mode
+
+## Family
+
+LearnChess is part of [Instrumenta](https://github.com/George-Nizor/Instrumenta), made by Bonehead Labs, and follows the Instrumenta brand v2: a green rook, drawn as a freestanding object. The interface type (Fraunces, Commissioner, Spline Sans Mono) is SIL OFL 1.1, vendored in `public/fonts/brand` with its licences. Licence: GPL-3.0-or-later (see above).

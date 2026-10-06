@@ -66,8 +66,9 @@ satisfy it, and both are worth keeping regardless:
 1. **The theme bootstrap moved to `public/theme-bootstrap.js`.** A classic `<script src>` in
    `<head>` still blocks parsing, so it runs before the first paint exactly as the inline version
    did, and `script-src` stays at `'self'`.
-2. **The fonts are vendored.** `npm run vendor:fonts` writes `public/fonts/`; see
-   [`LICENSES.md`](LICENSES.md).
+2. **The fonts are vendored.** The brand v2 fonts (Fraunces, Commissioner, Spline Sans Mono) are
+   copied into `public/fonts/brand/` from Instrumenta; see [`docs/brand/README.md`](docs/brand/README.md)
+   and [`LICENSES.md`](LICENSES.md). `public/brand/instrumenta-icons.js` is a classic `<script src>`.
 
 The audit also asserts the build contains WASM, `puzzles.db`, and a `.woff2` — a build missing any
 of them starts, looks right, and fails the first time a learner asks it to do anything.
@@ -83,14 +84,14 @@ attribute. `script-src` needs `blob:` and `'wasm-unsafe-eval'` for Stockfish and
 
 ### Branding
 
-`npm run brand` renders the mark. `scripts/render-brand-mark.py` models a rook as a surface of
-revolution with four separately built merlons, lights it, and rasterises it to a transparent RGBA
-PNG — no modelling package, no image generation, nothing traced. `--banner` also composes the
-1600×500 README banner around the same unaltered mark.
-
-Accent emerald `#2FA85F`, registered in `Instrumenta/brand/tokens.json`. The flat white rook in
-`public/favicon.svg` stays as it is: it is designed to read at 16 px against unpredictable browser
-chrome, which a shaded 3D render does not.
+Brand v2 (aligned 2026-10-06; record in [`docs/brand/README.md`](docs/brand/README.md)). The mark is
+the flat green rook with depth from `Instrumenta/brand`, copied into `public/brand/` (never edit the
+copies; regenerate in Instrumenta and copy again). The accent is `#47B968`, defined in
+`src/styles/globals.css` as `--brand-*` tokens. Type: Commissioner (interface, `FLAR` 40), Fraunces
+(h1/h2 and `.font-display` only), Spline Sans Mono (`font-mono`: FEN, PGN, counters). Use
+`text-accent-strong` (not `text-accent`) for accent-coloured text and `ring-focus` for focus rings:
+the raw green is too light for either on the light theme. Board colours and piece sets are content
+and keep their own colours.
 
 ### Size
 
