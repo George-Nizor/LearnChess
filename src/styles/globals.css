@@ -10,8 +10,8 @@
  *     greys (no warm cream tint) so the chessground board's natural browns
  *     read as the only warm element on the page.
  *   - Dark theme: deep charcoal (oklch ~16%) with achromatic ramps and a
- *     SINGLE warm amber accent. The previous sage/green accent is gone —
- *     now there's one accent colour and it's the same hue across themes.
+ *     SINGLE accent. Since brand v2 (2026-10) that accent is the LearnChess
+ *     rook green (#47B968, Instrumenta/brand/tokens.json), same in both themes.
  *   - Surface elevation: `--color-muted` is one step "up" from background,
  *     `--color-elevated` is two steps up (used for cards over the muted nav).
  *   - Eval-bar tokens kept (consumed by Play.tsx via `bg-eval-white` etc.).
@@ -19,10 +19,11 @@
  * Contrast (verified by OKLCH lightness deltas):
  *   Light: foreground 18% on background 98% → ~14:1 (AAA body)
  *          muted-foreground 42% on background 98% → ~7:1 (AAA body)
- *          accent-foreground 14% on accent 65% → ~5.2:1 (AA body)
+ *          accent-foreground (ink #091A0D) on accent #47B968 → ~8:1 (AAA)
+ *          accent-strong (deep #0B5D2A) as text on background 98% → ~8:1
  *   Dark:  foreground 96% on background 16% → ~16:1 (AAA body)
  *          muted-foreground 68% on background 16% → ~7.2:1 (AAA body)
- *          accent-foreground 14% on accent 78% → ~9.5:1 (AAA body)
+ *          accent-foreground (ink) on accent #47B968 → ~8:1; accent as text on 16% → ~7:1
  */
 @theme {
   /* Surfaces — achromatic ramp, no chroma. */
@@ -34,31 +35,43 @@
   --color-border: oklch(89% 0 0);
   --color-border-strong: oklch(78% 0 0);
 
-  /* Brand accent — warm amber. The single colour the eye lands on:
-     active-line border, primary buttons, focus ring, lesson highlights. */
-  --color-accent: oklch(65% 0.16 70);
-  --color-accent-foreground: oklch(14% 0.02 70);
-  --color-accent-soft: oklch(92% 0.05 70);
+  /* Brand v2 tokens, copied from Instrumenta/brand/tokens.json ("learnchess").
+     Do not hand-pick nearby values; refresh from the brand file instead. */
+  --brand-accent: #47B968;
+  --brand-secondary: #A7E2B2;
+  --brand-deep: #0B5D2A;
+  --brand-ink: #091A0D;
+  --brand-surface: #0E2513;
+
+  /* The single colour the eye lands on: primary buttons, selection, focus,
+     progress. Ink on the accent is ~8:1. */
+  --color-accent: var(--brand-accent);
+  --color-accent-foreground: var(--brand-ink);
+  --color-accent-soft: color-mix(in oklab, var(--brand-secondary) 40%, white);
+  /* Accent used as TEXT or as a focus ring on the page background. The raw
+     accent is only ~2.6:1 on the light page, so light uses the brand's deep
+     shade (~8:1); dark uses the accent itself (~7:1 on charcoal). */
+  --color-accent-strong: var(--brand-deep);
+  --color-focus: var(--brand-deep);
 
   /* Functional tokens (kept for existing trainer routes) */
   --color-eval-white: oklch(95% 0 0);
   --color-eval-black: oklch(18% 0 0);
 
-  /* Typography. Fraunces (variable serif) is the SOLE typeface for
-     display + body — chess-study character extended across the whole
-     page. Headers use heavier weight + tighter letter-spacing for
-     hierarchy, body sits at 400 weight. Mono is JetBrains Mono for
-     FEN / PGN / move counters. All loaded via Google Fonts in
-     index.html; system fallbacks render immediately. */
-  --font-sans: "Fraunces", "Iowan Old Style", "Apple Garamond", Georgia, "Times New Roman", serif;
+  /* Typography (brand v2). Commissioner (FLAR 40) is the interface face;
+     Fraunces is display only (wordmark, page and section titles, big
+     moments); Spline Sans Mono is for FEN / PGN / move counters / code.
+     Vendored in /fonts/brand, never from a CDN. System fallbacks render
+     immediately. */
+  --font-sans: "Commissioner", ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: "Fraunces", "Iowan Old Style", "Apple Garamond", Georgia, "Times New Roman", serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-mono: "Spline Sans Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
 @variant dark (&:where(.dark, .dark *));
 
 /* Dark theme — deep charcoal. Achromatic ramp from near-black up; the
-   single non-grey colour anywhere is the amber accent. */
+   single non-grey colour anywhere is the green accent. */
 .dark {
   --color-background: oklch(16% 0 0);
   --color-foreground: oklch(96% 0 0);
@@ -68,10 +81,10 @@
   --color-border: oklch(28% 0 0);
   --color-border-strong: oklch(40% 0 0);
 
-  /* Slightly warmer amber on dark — better legibility, more warmth. */
-  --color-accent: oklch(78% 0.14 75);
-  --color-accent-foreground: oklch(14% 0.02 75);
-  --color-accent-soft: oklch(28% 0.06 75);
+  /* Same accent as light. On dark it also reads as text and as a focus ring. */
+  --color-accent-soft: color-mix(in oklab, var(--brand-accent) 22%, var(--brand-surface));
+  --color-accent-strong: var(--brand-accent);
+  --color-focus: var(--brand-accent);
 }
 
 html, body, #root {
@@ -95,6 +108,7 @@ html {
 
 body {
   font-family: var(--font-sans);
+  font-variation-settings: "FLAR" 40;
   background-color: var(--color-background);
   color: var(--color-foreground);
   /* Subtle achromatic gradient — gives the surface depth without colour. */
@@ -121,21 +135,26 @@ body {
     );
 }
 
-/* Display font on top-level headings + brand wordmark. Body H4-H6 keep the
-   sans-serif weight for less visual noise inside trainer panels. */
-h1, h2, h3,
+/* Display face (Fraunces) for page and section titles and the wordmark only.
+   h3 and below are interface text and stay in Commissioner. Weight 650 and
+   SOFT/WONK per the brand; optical size follows the font size automatically. */
+h1, h2,
 .font-display {
   font-family: var(--font-display);
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+  font-optical-sizing: auto;
   letter-spacing: -0.012em;
 }
 
-h1 { font-weight: 600; }
-h2 { font-weight: 600; }
-h3 { font-weight: 500; }
+h1, h2 { font-weight: 650; }
+h3 { font-weight: 600; }
+
+/* Interface text that opts into Tailwind's font-mono: Spline Sans Mono. */
+.font-mono { font-variation-settings: normal; }
 
 /* Visible focus ring for keyboard nav — required by WCAG AA and by our brief. */
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
   border-radius: 4px;
 }

@@ -223,7 +223,7 @@ export function PuzzlesView({ repertoire }: PuzzlesViewProps): ReactNode {
       <div className="flex h-full min-h-0 flex-col gap-2">
         <div className="flex shrink-0 items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">
-            Solving puzzles from <span className="text-accent">{repertoire.name}</span>
+            Solving puzzles from <span className="text-accent-strong">{repertoire.name}</span>
           </h3>
           <button
             type="button"

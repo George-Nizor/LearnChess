@@ -214,7 +214,7 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Tutor
             </div>
-            <div className="font-display text-base font-medium leading-tight text-foreground">
+            <div className="text-base font-medium leading-tight text-foreground">
               {lesson.title}
               <span className="ml-2 text-[11px] font-normal text-muted-foreground">
                 · move {nodeIdx} / {lesson.nodes.length - 1}
@@ -273,7 +273,7 @@ function LearnView({ lesson, initialNodeIdx, playerSide, onProgress }: LearnView
 
         {finished && (
           <div className="shrink-0 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-sm">
-            <span className="font-semibold text-accent">✓ End of lesson</span>{' '}
+            <span className="font-semibold text-accent-strong">✓ End of lesson</span>{' '}
             — switch to Drill to test what you've learned.
           </div>
         )}
@@ -910,7 +910,7 @@ function EndgameCourseCard({ course, masteryByPos, discoveredByPos, onOpen }: En
           <button
             type="button"
             onClick={onOpen}
-            className="w-full rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            className="w-full rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
           >
             Open
           </button>

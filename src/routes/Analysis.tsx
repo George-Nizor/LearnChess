@@ -284,7 +284,7 @@ function ToolbarButton({
   disabled?: boolean;
 }): ReactElement {
   const base =
-    'inline-flex h-8 w-9 items-center justify-center rounded-md border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+    'inline-flex h-8 w-9 items-center justify-center rounded-md border text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus';
   const palette = active
     ? 'border-accent/60 bg-accent/15 text-foreground'
     : 'border-border bg-background text-foreground hover:bg-muted disabled:opacity-50 disabled:hover:bg-background';
@@ -771,14 +771,14 @@ export function Analysis() {
               <button
                 type="button"
                 onClick={() => void copyFen()}
-                className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 FEN
               </button>
               <button
                 type="button"
                 onClick={() => void copyPgn()}
-                className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 PGN
               </button>
@@ -801,7 +801,7 @@ export function Analysis() {
               <button
                 type="button"
                 onClick={resetToStart}
-                className="text-[11px] text-muted-foreground transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="text-[11px] text-muted-foreground transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 Reset
               </button>
@@ -822,7 +822,7 @@ export function Analysis() {
                     <button
                       type="button"
                       onClick={() => dispatch({ type: 'first' })}
-                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] uppercase tracking-wide text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
+                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] uppercase tracking-wide text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                         hState.currentPly === 0 ? 'bg-accent/15 ring-1 ring-inset ring-accent/40' : ''
                       }`}
                     >
@@ -846,7 +846,7 @@ export function Analysis() {
                           <button
                             type="button"
                             onClick={() => dispatch({ type: 'goto', ply: w.ply })}
-                            className={`px-2 py-1 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
+                            className={`px-2 py-1 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                               wActive ? 'bg-accent/15 font-semibold ring-1 ring-inset ring-accent/40' : ''
                             }`}
                           >
@@ -859,7 +859,7 @@ export function Analysis() {
                           <button
                             type="button"
                             onClick={() => dispatch({ type: 'goto', ply: b.ply })}
-                            className={`px-2 py-1 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
+                            className={`px-2 py-1 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                               bActive ? 'bg-accent/15 font-semibold ring-1 ring-inset ring-accent/40' : ''
                             }`}
                           >
@@ -913,7 +913,7 @@ export function Analysis() {
                         type="button"
                         onClick={() => setMultiPv(n)}
                         aria-pressed={isOn}
-                        className={`min-w-6 px-1.5 py-0.5 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
+                        className={`min-w-6 px-1.5 py-0.5 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                           isOn
                             ? 'bg-accent/20 text-foreground'
                             : 'bg-background text-muted-foreground hover:bg-muted'
@@ -992,7 +992,7 @@ export function Analysis() {
                                   key={chip.index}
                                   type="button"
                                   onClick={() => playPvChip(chip, line)}
-                                  className="rounded px-1 -mx-0.5 transition-colors hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                  className="rounded px-1 -mx-0.5 transition-colors hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                   aria-label={`Play ${chip.san}`}
                                 >
                                   {prefix && (
@@ -1014,7 +1014,7 @@ export function Analysis() {
 
           {/* Position loader — collapsed by default. */}
           <details className="group rounded-md border border-border bg-muted/30">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus">
               <span>Load FEN or PGN</span>
               <span aria-hidden="true" className="font-mono text-muted-foreground transition-transform group-open:rotate-180">
                 ▾
@@ -1039,13 +1039,13 @@ export function Analysis() {
                     }
                   }}
                   placeholder={currentFen}
-                  className="w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 />
                 <div className="mt-1 flex items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => applyFen(fenInput)}
-                    className="rounded border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="rounded border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   >
                     Load FEN
                   </button>
@@ -1067,13 +1067,13 @@ export function Analysis() {
                   value={pgnInput}
                   onChange={(e) => setPgnInput(e.target.value)}
                   placeholder="1. e4 e5 2. Nf3 Nc6 …"
-                  className="w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 />
                 <div className="mt-1 flex items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => applyPgn(pgnInput)}
-                    className="rounded border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="rounded border border-border bg-background px-2 py-0.5 text-[11px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   >
                     Load PGN
                   </button>
