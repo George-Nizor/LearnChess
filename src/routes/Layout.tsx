@@ -74,11 +74,11 @@ export function Layout() {
           <NavLink
             to="/"
             end
-            className="group flex h-10 w-10 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="group ii-hover flex h-10 w-10 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             aria-label="LearnChess home"
             title="LearnChess"
           >
-            <Logo size={28} decorative />
+            <Logo size={34} decorative />
           </NavLink>
 
           {/* Divider */}
@@ -95,7 +95,7 @@ export function Layout() {
                 to={to}
                 aria-label={label}
                 className={({ isActive }) =>
-                  `group relative flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                  `group relative flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                     isActive
                       ? 'bg-accent text-accent-foreground shadow-sm'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -125,7 +125,7 @@ export function Layout() {
               aria-label="Settings"
               title="Settings"
               className={({ isActive }) =>
-                `flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                `flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                   isActive
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'

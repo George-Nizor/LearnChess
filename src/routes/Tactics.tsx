@@ -525,7 +525,7 @@ export function Tactics() {
               onClick={loadNext}
               title="Skip current puzzle and load a new one"
               aria-label="Skip puzzle"
-              className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <svg
                 width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -574,7 +574,7 @@ export function Tactics() {
                 <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Opening
                   {selectedOpenings.length > 0 && (
-                    <span className="ml-1 rounded bg-accent/20 px-1.5 py-0.5 font-mono text-[10px] text-accent">
+                    <span className="ml-1 rounded bg-accent/20 px-1.5 py-0.5 font-mono text-[10px] text-accent-strong">
                       {selectedOpenings.length}
                     </span>
                   )}
@@ -627,7 +627,7 @@ export function Tactics() {
                     onChange={(e) => setOpeningSearch(e.target.value)}
                     placeholder="Filter by opening…"
                     autoComplete="off"
-                    className="w-full rounded border border-border bg-background px-2 py-1 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="w-full rounded border border-border bg-background px-2 py-1 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   />
                   {openingSuggestions.length > 0 && (
                     <ul
@@ -666,7 +666,7 @@ export function Tactics() {
                           type="button"
                           onClick={() => removeOpening(tag)}
                           aria-label={`Remove ${formatOpeningTag(tag)} opening filter`}
-                          className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                         >
                           <span>{formatOpeningTag(tag)}</span>
                           <svg
@@ -707,11 +707,11 @@ export function Tactics() {
                   const defaultOpen = DEFAULT_OPEN_GROUPS.includes(g) || selectedInGroup > 0;
                   return (
                     <details key={g} open={defaultOpen} className="mb-1 group">
-                      <summary className="flex cursor-pointer list-none items-center justify-between rounded px-1 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                      <summary className="flex cursor-pointer list-none items-center justify-between rounded px-1 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
                         <span>
                           {GROUP_LABELS[g]}
                           {selectedInGroup > 0 && (
-                            <span className="ml-1 rounded bg-accent/20 px-1.5 py-0.5 font-mono text-[10px] text-accent">
+                            <span className="ml-1 rounded bg-accent/20 px-1.5 py-0.5 font-mono text-[10px] text-accent-strong">
                               {selectedInGroup}
                             </span>
                           )}
@@ -831,7 +831,7 @@ export function Tactics() {
               type="button"
               onClick={() => removeOpening(tag)}
               aria-label={`Remove ${formatOpeningTag(tag)} opening filter`}
-              className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-strong hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               title={formatOpeningTag(tag)}
             >
               <span className="max-w-[120px] truncate">{formatOpeningTag(tag)}</span>
@@ -844,7 +844,7 @@ export function Tactics() {
               type="button"
               onClick={() => removeTheme(t)}
               aria-label={`Remove ${labelFor(t)} filter`}
-              className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <span>{labelFor(t)}</span>
               <span aria-hidden>×</span>
@@ -952,7 +952,7 @@ export function Tactics() {
             <div className="flex flex-col gap-1.5">
               <Link
                 to={`/analysis?fen=${encodeURIComponent(fen)}`}
-                className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft/40 px-3 py-1.5 text-xs font-medium text-accent hover:border-accent hover:bg-accent-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent/40 bg-accent-soft/40 px-3 py-1.5 text-xs font-medium text-accent-strong hover:border-accent hover:bg-accent-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 <svg
                   width="14"
@@ -972,7 +972,7 @@ export function Tactics() {
                 <span>Analyze position</span>
               </Link>
               <details className="text-[11px] text-muted-foreground">
-                <summary className="cursor-pointer list-none rounded px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                <summary className="cursor-pointer list-none rounded px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
                   Puzzle ID
                 </summary>
                 <div className="mt-1">

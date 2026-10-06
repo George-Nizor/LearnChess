@@ -111,7 +111,7 @@ function ChoiceGroup<T extends string>({
                 aria-label={`${opt.label}${opt.description ? ` — ${opt.description}` : ''}`}
                 title={opt.description}
                 onClick={() => onChange(opt.id)}
-                className={`group cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                className={`group cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                   isActive
                     ? 'border-accent bg-accent text-accent-foreground shadow-sm'
                     : 'border-border bg-background text-foreground hover:bg-muted'
@@ -188,15 +188,15 @@ function PreviewGrid<T extends string>({
               ref={(el) => { refs.current[idx] = el; }}
               onClick={() => onChange(opt.id)}
               onKeyDown={(e) => onKeyDown(e, idx)}
-              className={`group flex flex-col items-center gap-2 rounded-lg border p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+              className={`group flex flex-col items-center gap-2 rounded-lg border p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                 isActive
-                  ? 'border-accent bg-accent/10 ring-1 ring-accent shadow-sm'
+                  ? 'border-accent bg-accent/10 ring-1 ring-focus shadow-sm'
                   : 'border-border bg-background hover:bg-muted'
               }`}
               data-name={name}
             >
               {renderPreview(opt.id)}
-              <span className={`text-xs font-medium ${isActive ? 'text-accent' : 'text-foreground'}`}>
+              <span className={`text-xs font-medium ${isActive ? 'text-accent-strong' : 'text-foreground'}`}>
                 {opt.label}
               </span>
             </button>
@@ -214,7 +214,7 @@ function ResetButton({ onClick, label = 'Reset to defaults' }: { onClick: () => 
     <button
       type="button"
       onClick={onClick}
-      className="self-start rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="self-start rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
     >
       {label}
     </button>
@@ -401,7 +401,7 @@ export function Settings(): ReactNode {
             <p className="text-sm text-muted-foreground" role="status">Wiping…</p>
           )}
           {wipeStatus === 'done' && (
-            <p className="text-sm text-accent" role="status">
+            <p className="text-sm text-accent-strong" role="status">
               Local progress cleared. Reload the page to see a fresh dashboard.
             </p>
           )}

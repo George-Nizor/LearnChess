@@ -274,7 +274,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Tutor
             </div>
-            <div className="font-display text-base font-medium leading-tight text-foreground">
+            <div className="text-base font-medium leading-tight text-foreground">
               {line.name}
               <span className="ml-2 text-[11px] font-normal text-muted-foreground">
                 · move {nodeIdx} / {line.nodes.length - 1}
@@ -323,7 +323,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
 
         {finished && (
           <div className="shrink-0 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent-foreground/90 dark:bg-accent/15">
-            <span className="font-semibold text-accent">✓ End of line</span>{' '}
+            <span className="font-semibold text-accent-strong">✓ End of line</span>{' '}
             — switch to Drill to test what you've learned.
           </div>
         )}
@@ -337,7 +337,7 @@ function LearnView({ course, line, repertoireId: _repertoireId, initialNodeIdx, 
           <div className="flex shrink-0 items-center gap-3 rounded-xl border border-border bg-elevated/40 p-3 text-xs">
             <PawnSkeleton fen={fen} size={88} orientation={playerSide} />
             <div className="min-w-0">
-              <div className="font-display text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Pawn skeleton
               </div>
               <p className="mt-1 leading-snug text-muted-foreground">
@@ -585,7 +585,7 @@ function DrillView({ repertoire, line, onMastery }: DrillViewProps): ReactNode {
         <div role="status" aria-live="polite" className="rounded-md border border-border bg-elevated p-4">
           {sessionView?.finished ? (
             <>
-              <p className="text-base font-semibold text-accent">✓ Line complete</p>
+              <p className="text-base font-semibold text-accent-strong">✓ Line complete</p>
               <p className="mt-1 text-xs text-muted-foreground">Loading next line…</p>
             </>
           ) : sessionView?.expected?.isOwnMove ? (
@@ -861,7 +861,7 @@ function CourseControlBar({
                       <span
                         className={`shrink-0 text-[11px] ${
                           status === 'completed'
-                            ? 'text-accent'
+                            ? 'text-accent-strong'
                             : status === 'in-progress'
                               ? 'text-amber-500'
                               : 'text-muted-foreground'
@@ -1349,7 +1349,7 @@ function CourseCard({ row, onOpen }: CourseCardProps): ReactNode {
           <button
             type="button"
             onClick={onOpen}
-            className="w-full rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            className="w-full rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
           >
             Open
           </button>
@@ -1491,7 +1491,7 @@ export function Openings(): ReactNode {
           <button
             type="button"
             onClick={goBack}
-            className="mt-2 text-sm text-accent hover:underline"
+            className="mt-2 text-sm text-accent-strong hover:underline"
           >
             ← Back to courses
           </button>

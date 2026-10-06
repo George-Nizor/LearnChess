@@ -51,7 +51,7 @@ export function SoundPreviewButton({ pack, label }: SoundPreviewButtonProps): Re
       disabled={playing}
       aria-label={a11y}
       title={a11y}
-      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
+      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
     >
       <span aria-hidden="true">{playing ? '■' : '▶'}</span>
       <span>Preview</span>
