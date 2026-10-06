@@ -10,25 +10,28 @@
       name="description"
       content="LearnChess — practise tactics, openings and endgames offline. Local-first chess training with Stockfish, spaced repetition and Lichess-graded puzzles."
     />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/brand/learnchess.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/learnchess-32.png" />
+    <link rel="icon" href="/brand/learnchess.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/brand/learnchess-128.png" />
 
-    <!-- Fonts: Fraunces (variable serif) for BOTH display and body —
-         user explicitly asked for the heading font to extend across
-         the body too rather than mixing serif headers with sans body.
-         JetBrains Mono is the monospace for FEN / PGN / move counters.
-
-         Served from /fonts rather than fonts.googleapis.com. The app is
-         offline-first, and inside Instrumenta it runs under a CSP with
-         default-src 'none', where a third-party stylesheet and font host
-         are both blocked. Regenerate with `npm run vendor:fonts`. -->
-    <link rel="stylesheet" href="/fonts/fonts.css" />
+    <!-- Fonts (Instrumenta brand v2): Commissioner for the interface,
+         Fraunces for display titles, Spline Sans Mono for FEN / PGN / code.
+         Vendored in /fonts/brand (see docs/brand/README.md), never from a CDN:
+         the app is offline-first, and inside Instrumenta it runs under a CSP
+         with default-src 'none'. -->
+    <link rel="stylesheet" href="/fonts/brand/fonts.css" />
     <link
       rel="preload"
       as="font"
       type="font/woff2"
-      href="/fonts/fraunces-400-latin.woff2"
+      href="/fonts/brand/commissioner-oblique-latin.woff2"
       crossorigin
     />
+    <!-- Brand icon motion (the rook hops on hover/focus; honours
+         prefers-reduced-motion). -->
+    <link rel="stylesheet" href="/brand/instrumenta-icons.css" />
+    <script src="/brand/instrumenta-icons.js"></script>
 
     <title>LearnChess — Train tactics, openings & endgames offline</title>
 
