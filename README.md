@@ -1,214 +1,143 @@
-# LearnChess
-
 ![LearnChess banner](docs/images/learnchess-banner.png)
 
 <p align="center"><img src="docs/brand/learnchess-animated.svg" alt="LearnChess rook" width="96" /></p>
 
-I didn't want to pay to practice openings so I made something myself, using claude code, which costs way more, but I had it anyway so it's fine!!
+# LearnChess
 
-## What it is
+Stockfish, two hundred thousand Lichess puzzles and an opening book, all local. The endgame trainer
+asks the Lichess tablebase for verdicts.
 
-A self-hosted chess learning app you run in a browser. No accounts, no subscriptions, no telemetry. Four pillars:
+I didn't want to pay to practice openings so I made something myself, using claude code, which costs
+way more, but I had it anyway so it's fine!!
 
-- **Play** — face Stockfish at five strength presets, from "blunders for fun" to ~3000 Elo.
-- **Tactics** — solve real Lichess puzzles, ratings move with you (Glicko-lite), filter by theme or opening.
-- **Openings** — drill a curated repertoire (13 named openings, 96 tabiyas) with spaced repetition.
-- **Endgames** — work through canonical endings, graded by Lichess's tablebase.
+LearnChess is a chess training app that runs in the browser. It has no accounts, no backend and no
+telemetry. It is the chess learning app in the Instrumenta suite and also runs on its own.
 
-It is also one of the applications [Instrumenta](../Instrumenta) covers, where it opens as a
-sandboxed desktop window served by the launcher. Nothing about that changes the browser build.
+Current version: **0.2.0**.
 
-Everything runs in the browser. Per-user state (puzzle history, opening progress, ratings) lives in IndexedDB. The only external call is the Lichess tablebase API for endgame verdicts — and that's read-only, no auth, fine to run offline-mostly behind a homelab reverse proxy.
+## What it has
 
-## How it works
+**Play.** Play Stockfish 16 (NNUE, single-threaded WASM in a Web Worker) at Beginner, Intermediate
+or Strong, or set the skill level (0 to 20) and think time yourself. An eval bar and a best-move
+arrow are optional.
 
-| Piece | What does the work |
-|---|---|
-| Board rendering | [chessground](https://github.com/lichess-org/chessground) (the Lichess board library) |
-| Move legality | [chess.js](https://github.com/jhlywa/chess.js) |
-| Engine | Stockfish 16 NNUE WASM, in a Web Worker, talking UCI |
-| Tactics DB | 200k Lichess puzzles in a Brotli-compressed SQLite shipped as a static asset, loaded in-browser via sqlite-wasm |
-| Endgame verdicts | Lichess tablebase API (`tablebase.lichess.ovh`) |
-| Opening drill scheduler | SM-2-lite (deck-aware spaced repetition) |
-| Persistence | IndexedDB via [idb](https://github.com/jakearchibald/idb), schemas migrated forwards |
+**Tactics.** Lichess puzzles from a local SQLite database, read in the browser with sqlite-wasm.
+Filter by theme or by opening. A Glicko-1 style rating moves after each attempt, and puzzles you have
+already tried are skipped until the filter runs out of new ones.
 
-The puzzle DB is built at Docker-build time from the [Lichess puzzle dump](https://database.lichess.org/) (CC0). 5.8M raw puzzles get pruned to 200k balanced across rating bands and major themes — enough to never repeat for a normal session, small enough to fit in browser memory.
+**Openings.** 14 courses: Italian, Ruy Lopez, Scotch, Sicilian, Caro-Kann, French, Queen's Gambit
+Declined, King's Indian, London, English, Scandinavian, Pirc, Slav and Vienna. They hold 200 lines,
+61 of which are deviations from a main line. Each course has five modes:
 
-Stockfish runs single-threaded so we don't need cross-origin isolation headers (COOP/COEP), which means you can drop this behind any reverse proxy without fighting CSP.
+- **Learn** walks through a line with notes that highlight squares on the board.
+- **Drill** plays the other side while you play yours; an SM-2-lite scheduler picks the lines that
+  are due, and a wrong move is taken back.
+- **Test** asks multiple-choice and click-the-key-square questions generated from the lesson text.
+- **Puzzles** filters the tactics database to that opening.
+- **Explore** opens the line in the analysis board.
 
-## Play
+You can also import your own repertoire from pasted PGN or a public Lichess study.
 
-![Play vs Stockfish](docs/screenshots/play.png)
+**Endgames.** 31 positions in four courses: pawn, rook, minor piece and queen endings. Drill plays
+the other side with the Lichess tablebase's best reply (Stockfish if the tablebase cannot be
+reached) and grades your moves by the tablebase verdict. Five positions (king and pawn against king,
+Lucena, Philidor, and the basic queen and rook mates) also have a step-by-step Learn walkthrough; the
+rest are Drill only for now. Explore opens the position in the analysis board.
 
-Pick a strength, hit New Game, play. Move a piece by drag or click-click. The eval bar on the left tracks who's ahead in real time.
+**Analysis.** Load a FEN or PGN, step through the moves, and read one to four Stockfish lines (three
+by default) with evaluation and depth.
 
-## Tactics
+The dashboard shows your tactics rating, accuracy, endgame results and 30-day charts. Settings has
+light, dark and automatic themes, five board colours, three piece sets, four sound packs, and a
+button that wipes local progress.
 
-![Tactics trainer](docs/screenshots/tactics.png)
+The layout assumes a desktop-width window. The phone layout is unfinished; the plan is in
+[`docs/MOBILE_PLAN.md`](docs/MOBILE_PLAN.md).
 
-Puzzles pulled from Lichess. Your rating updates after each attempt with a Glicko-lite calc — solve harder than your rating, you go up; miss something at your level, you go down. Filter by theme (forks, pins, mating patterns, etc.) or by opening. Already-attempted puzzles are excluded from selection so you keep seeing fresh content.
+## Requirements
 
-## Analysis
+Node.js 22.12 or newer and npm. `npm run setup` needs network access to `raw.githubusercontent.com`
+(piece sets, opening names) and `database.lichess.org` (the puzzle dump, about 280 MB, fetched with
+`wget`). In use, only the endgame trainer and the Lichess study import reach the network.
 
-![Analysis board](docs/screenshots/analysis.png)
-
-Paste a FEN or PGN, walk through the moves, watch Stockfish chew on it. Three multi-PV lines, eval, depth, and the principal variation as clickable move chips.
-
-## Openings
-
-![Opening courses](docs/screenshots/openings-catalogue.png)
-
-13 hand-curated repertoires across both sides. Each course is broken into named tabiyas — the recognisable pause-points where the opening stops being theory and starts being a real game. Italian, Spanish, Sicilian, French, Caro-Kann, QGD, KID, London, English, Scandinavian, Pirc, Slav, Vienna.
-
-![Italian Game — Learn mode](docs/screenshots/openings-course.png)
-
-Three modes per course:
-
-- **Learn** — read the prose for each tabiya: White's plan, Black's plan, key squares, tactical themes. The text drives on-board square highlights so you see the idea, not just read about it.
-- **Drill** — the trainer plays the opponent, you play your side, the scheduler picks lines based on what you've forgotten. Wrong move = auto-undo with a red flash, no "press the X button" friction.
-- **Test** — multiple-choice and click-the-key-square questions auto-generated from the tabiya prose. Spaced-repetition scheduled per card.
-
-There's also a **Puzzles** tab inside each course that filters the tactics DB to puzzles arising from that opening's positions, so the tactical patterns you drill match the structures you actually play.
-
-## Endgames
-
-![Endgame courses](docs/screenshots/endgames-catalogue.png)
-
-Five courses: Pawn, Rook, Minor-piece, Queen, and Misc endgames. Each course is a sequence of canonical positions — the ones that show up in real games, not contrived studies.
-
-![Pawn endgames — Learn mode](docs/screenshots/endgames-course.png)
-
-Same three-mode structure as openings. **Learn** walks through the technique step-by-step with prose and key-square highlights. **Drill** asks you to find the moves yourself; verdicts come from the Lichess tablebase, so the grading is ground-truth. **Explore** lets you make any move and see the engine + tablebase response — useful for "what if I'd played X instead?"
-
-## Quick start (development)
+## Run it
 
 ```bash
 git clone https://github.com/George-Nizor/LearnChess.git
 cd LearnChess
 npm install
-npm run setup       # downloads Stockfish (~85 MB) + Lichess puzzle CSV (~280 MB → 55 MB DB) + sounds + piece sets. Idempotent.
-npm run dev         # http://localhost:5173
+npm run setup
+npm run dev
 ```
 
-If you skip `setup`, the dev server still boots — but Play, Analysis, Tactics, and the Openings → Puzzles tab are unavailable until the engine and puzzle DB are vendored. A banner at the top of the app tells you which command to run.
+The dev server listens on `http://localhost:5173`. `npm run setup` copies Stockfish and the SQLite
+WASM out of `node_modules`, generates the sounds, downloads the piece sets and opening names, then
+builds `public/puzzles.db` (about 55 MB) from the Lichess puzzle dump. It is safe to run again.
+Without it the app still starts, but Play, Analysis and Tactics stay unavailable and a banner names
+the missing files.
 
-The engine and puzzle DB are not committed (too large, regenerable). Run `npm run setup` once per fresh clone.
+`npm run build:puzzles` reuses `.cache/lichess_db_puzzle.csv.zst` if it exists, or copies the dump
+from the path in `PUZZLE_DUMP_PATH`, so a host that cannot reach Lichess can use a dump fetched
+elsewhere.
 
-### Other npm scripts
+`npm run build` writes `dist/` (about 150 MB, most of it the engine networks and puzzles) and
+`npm run preview` serves it.
 
-```
-npm run typecheck     # tsc --noEmit (strict; exactOptionalPropertyTypes; verbatimModuleSyntax)
-npm run lint          # eslint --max-warnings 0
-npm run test          # vitest
-npm run test:e2e      # playwright (chromium)
-npm run build         # production bundle into dist/ (~150 MB)
-npm run preview       # serve the production build locally
-```
-
-## Self-hosting on a homelab
-
-Three-stage Docker build (Node build → Brotli pre-compression → Alpine nginx-with-brotli) plus a `docker-compose.yml` that drops the container behind any reverse proxy:
+## Self-hosting with Docker
 
 ```bash
 docker compose up -d --build
 ```
 
-The build pulls Stockfish from npm, downloads the Lichess puzzle dump, prunes it to 200k puzzles, and bakes everything into a static-asset image. **No runtime data fetches needed.** The container ships read-only, listens on port 8080, and uses ~256 MB of RAM at idle.
+The image builds the app, pre-compresses it, and serves it from nginx on port 8080 (set
+`LEARNCHESS_PORT` to change the host port) in a read-only container limited to 256 MB of memory. The
+build downloads the puzzle dump from `database.lichess.org` and keeps it in a BuildKit cache;
+`.cache/` and `PUZZLE_DUMP_PATH` are not used inside Docker. `docker-compose.yml` has a commented-out
+Caddy service for HTTPS without an existing reverse proxy. [`docs/DEPLOY.md`](docs/DEPLOY.md) covers
+HTTPS, cache headers and the multi-threaded engine option.
 
-Build time on a typical machine: ~4 minutes (the puzzle download is the slow step). Image size: ~250 MB compressed.
+## Where data lives
 
-If you don't already have a reverse proxy, uncomment the standalone Caddy profile in `docker-compose.yml`:
+Progress stays in the browser's IndexedDB for the page's origin, in three databases: `learnchess`
+(puzzle attempts, ratings, endgame attempts), `learnchess-openings` (repertoires, drill and test
+progress) and `learnchess-endgames` (Learn progress). Theme, board, piece set and sound choices are
+in `localStorage`. Nothing is synced; Settings has the wipe button.
+
+## Instrumenta and releases
+
+[`instrumenta/product.json`](instrumenta/product.json) builds LearnChess as `web-vite`; the launcher
+delivers it as `managed-web` and opens it on `127.0.0.1:49324` in a sandboxed window. A fresh
+Instrumenta install starts from the copy bundled with the launcher and then updates from LearnChess's
+GitHub releases. Pushing a `v<version>` tag runs
+[`.github/workflows/release.yml`](.github/workflows/release.yml), which calls Instrumenta's shared web
+product release workflow.
+
+The launcher's Content-Security-Policy allows one outside host, `tablebase.lichess.ovh`, so the
+Lichess study import does not work there. Paste the study's PGN instead.
+
+## Development
 
 ```bash
-CADDY_DOMAIN=chess.example.com docker compose --profile standalone up -d
+npm run typecheck
+npm run lint
+npm test
+npm run test:e2e
 ```
 
-Caddy handles HTTPS via Let's Encrypt automatically. Full notes — cache headers, build-time network requirements, multi-thread Stockfish upgrade path — in [`docs/DEPLOY.md`](docs/DEPLOY.md).
+`npm test` runs Vitest; `npm run test:e2e` runs Playwright in Chromium. CI runs typecheck, lint and
+unit tests, then builds the Docker image. The stack and the reasons for each pick are in
+[`docs/research/stack.md`](docs/research/stack.md).
 
-### Build-time network requirements
+## Licence
 
-The Docker build needs outbound network for:
-
-- npm registry (deps)
-- `github.com` for the Stockfish WASM artefacts
-- `database.lichess.org` for the puzzle CSV (~280 MB, fetched once per build)
-
-Run-time network is **optional** — only the Endgames pillar pings `tablebase.lichess.ovh` for verdicts. Everything else works fully offline after the first asset load.
-
-The CSV download is cached across builds via a BuildKit cache mount, so monthly rebuilds skip the 280 MB re-fetch. Run `docker builder prune` when you actually want a fresh dump (Lichess refreshes the dataset monthly).
-
-### Air-gapped or flaky-network builds (`PUZZLE_DUMP_PATH`)
-
-If your build host can't reach `database.lichess.org` — common on segmented homelab networks, behind a corporate proxy, or when undici hangs against your DNS setup — stage the dump out-of-band:
-
-```bash
-# On a machine that CAN reach Lichess:
-curl -L -o lichess_db_puzzle.csv.zst \
-  https://database.lichess.org/lichess_db_puzzle.csv.zst
-
-# Drop it into .cache/ before building. The build:puzzles script
-# auto-detects and reuses existing files at this path:
-mkdir -p .cache
-mv lichess_db_puzzle.csv.zst .cache/
-docker compose build
-```
-
-Alternatively, set `PUZZLE_DUMP_PATH` to point at a file anywhere on the build host and the script copies it into `.cache/` for you. If the env var is set but the file doesn't exist, the build errors out with a clear message rather than silently falling back to the network — opt-out is explicit.
-
-## Architecture
-
-```
-src/
-├── routes/              # Play, Tactics, Openings, Endgames, Analysis, Dashboard, Settings
-├── chess/
-│   ├── board/           # chessground React wrapper
-│   ├── engine/          # Stockfish UCI worker bridge
-│   ├── rules/           # chess.js wrappers + types
-│   ├── tablebase/       # Lichess tablebase client
-│   └── openings/        # offline opening book (move graph)
-├── openings/
-│   ├── lessons.ts       # 96 tabiyas across 13 opening courses
-│   ├── proseParser.ts   # parses tabiya prose into typed sections + tokens
-│   ├── testQuestions.ts # auto-generates Test-mode questions
-│   ├── drillSession.ts  # SRS-backed Drill-mode scheduler
-│   ├── lineSelector.ts  # spaced drill-line selection
-│   ├── scheduler.ts     # SM-2-lite SRS algorithm
-│   └── db.ts            # IndexedDB (repertoires, moves, lineProgress, testCards)
-├── puzzles/             # tactics: db, scheduler, rating, themes
-├── components/ui/       # shared React primitives
-├── persistence/         # IDB wrapper for tactics + endgames
-├── state/               # zustand stores
-└── styles/globals.css   # Tailwind v4 entry + theme tokens
-```
-
-`docs/` holds the research briefs that locked the stack ([`stack.md`](docs/research/stack.md), [`puzzle-db.md`](docs/research/puzzle-db.md), [`competitor-deep-dive.md`](docs/research/competitor-deep-dive.md)) and [`DEPLOY.md`](docs/DEPLOY.md). [`CLAUDE.md`](CLAUDE.md) is the architectural-decision log.
-
-## Stack
-
-| Layer | Pick | Version |
-|---|---|---|
-| Build | Vite | 6 |
-| UI | React + TypeScript strict | 19 |
-| Styling | Tailwind 4 (Oxide) + shadcn/ui primitives | 4 |
-| Board | chessground | 9.2 |
-| Move engine | chess.js | 1.x |
-| Engine | Stockfish 16 NNUE WASM (single-thread) | 16 |
-| State | zustand (UI) + idb (persistence) | 5 / 8 |
-| Tactics DB | sqlite-wasm + Brotli static asset | latest |
-
-Full reasoning per pick — and the alternatives that didn't make it — in [`docs/research/stack.md`](docs/research/stack.md).
-
-## License
-
-GPL-3.0-or-later. Forced by chessground (GPL bundled into the JS). Stockfish is also GPL but ships as an isolated WASM worker, so the licensing boundary is clean — see [`LICENSES.md`](LICENSES.md) for the isolation pattern.
-
-## Acknowledgements
-
-- [Lichess](https://lichess.org) — puzzle dump (CC0), tablebase, and the chessground/Stockfish work the whole open-source chess world rides on
-- [chess.js](https://github.com/jhlywa/chess.js) — move generator
-- [chessdriller](https://github.com/gtim/chessdriller) — opening drill UX inspiration
-- [Chessable](https://www.chessable.com), [chessreps](https://chessreps.com), [Listudy](https://listudy.org) — competitor research that shaped the line picker + Learn mode
+GPL-3.0-or-later ([LICENSE](LICENSE)), required by chessground, which is bundled. Stockfish (GPL-3.0)
+runs as a separate worker. [`LICENSES.md`](LICENSES.md) lists the bundled code, piece sets, fonts and
+data (the Lichess puzzle database is CC0) and how to get the corresponding source.
 
 ## Family
 
-LearnChess is part of [Instrumenta](https://github.com/George-Nizor/Instrumenta), made by Bonehead Labs, and follows the Instrumenta brand v2: a green rook, drawn as a freestanding object. The interface type (Fraunces, Commissioner, Spline Sans Mono) is SIL OFL 1.1, vendored in `public/fonts/brand` with its licences. Licence: GPL-3.0-or-later (see above).
+LearnChess is part of [Instrumenta](https://github.com/George-Nizor/Instrumenta), a suite of local
+learning and creative apps made by [Bonehead Labs](https://boneheadlabs.org)
+([GitHub](https://github.com/Bonehead-Labs)). It follows the Instrumenta brand v2: a green rook,
+drawn as a freestanding object. The interface type (Fraunces, Commissioner, Spline Sans Mono) is SIL
+OFL 1.1, vendored in `public/fonts/brand` with its licences. Licence: GPL-3.0-or-later.
